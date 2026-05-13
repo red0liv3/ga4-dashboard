@@ -28,6 +28,8 @@ const propertyColors: Record<string, string> = {
   SolidCAD: "#be123c",
 }
 
+const quarterOptions = ["All", "Q1", "Q2", "Q3", "Q4"]
+
 function formatMonth(value: string) {
   const year = value.slice(0, 4)
   const month = value.slice(4, 6)
@@ -36,6 +38,15 @@ function formatMonth(value: string) {
     month: "short",
     year: "numeric",
   })
+}
+
+function getQuarter(value: string) {
+  const month = Number(value.slice(4, 6))
+
+  if ([1, 2, 3].includes(month)) return "Q1"
+  if ([4, 5, 6].includes(month)) return "Q2"
+  if ([7, 8, 9].includes(month)) return "Q3"
+  return "Q4"
 }
 
 function KpiCard({ label, value }: { label: string; value: string }) {
@@ -55,6 +66,7 @@ export default function DashboardPage() {
     "Acquisition",
   ])
   const [selectedProperties, setSelectedProperties] = useState<string[]>([])
+  const [selectedQuarter, setSelectedQuarter] = useState("All")
 
   useEffect(() => {
     fetch("/api/dashboard")
@@ -75,25 +87,38 @@ export default function DashboardPage() {
     return data.properties.filter((p: any) => selectedGroups.includes(p.group))
   }, [data, selectedGroups])
 
-  const visibleProperties = useMemo(() => {
+  const visibleRowsBase = useMemo(() => {
+    if (!data?.rows) return []
+
+    return data.rows.filter((row: any) => {
+      const propertyVisible = selectedProperties.includes(row.property)
+      const groupVisible = selectedGroups.includes(row.group)
+      const validMonth = row.month && row.month !== "error"
+      const quarterVisible =
+        selectedQuarter === "All" || getQuarter(row.month) === selectedQuarter
+
+      return propertyVisible && groupVisible && validMonth && quarterVisible
+    })
+  }, [data, selectedProperties, selectedGroups, selectedQuarter])
+
+  const sortedVisibleProperties = useMemo(() => {
+    const totalsByProperty: Record<string, number> = {}
+
+    for (const row of visibleRowsBase) {
+      totalsByProperty[row.property] =
+        (totalsByProperty[row.property] || 0) + (row.sessions || 0)
+    }
+
     return propertiesInSelectedGroups
       .filter((p: any) => selectedProperties.includes(p.name))
       .map((p: any) => p.name)
-  }, [propertiesInSelectedGroups, selectedProperties])
-
-  const visibleRows = useMemo(() => {
-    if (!data?.rows) return []
-
-    return data.rows.filter(
-      (row: any) =>
-        row.month &&
-        row.month !== "error" &&
-        visibleProperties.includes(row.property)
-    )
-  }, [data, visibleProperties])
+      .sort((a: string, b: string) => {
+        return (totalsByProperty[b] || 0) - (totalsByProperty[a] || 0)
+      })
+  }, [visibleRowsBase, propertiesInSelectedGroups, selectedProperties])
 
   const totals = useMemo(() => {
-    return visibleRows.reduce(
+    return visibleRowsBase.reduce(
       (acc: any, row: any) => {
         acc.sessions += row.sessions || 0
         acc.activeUsers += row.activeUsers || 0
@@ -106,12 +131,12 @@ export default function DashboardPage() {
         newUsers: 0,
       }
     )
-  }, [visibleRows])
+  }, [visibleRowsBase])
 
   const monthlyData = useMemo(() => {
     const grouped: Record<string, any> = {}
 
-    for (const row of visibleRows) {
+    for (const row of visibleRowsBase) {
       if (!grouped[row.month]) {
         grouped[row.month] = {
           rawMonth: row.month,
@@ -125,7 +150,7 @@ export default function DashboardPage() {
     return Object.values(grouped).sort((a: any, b: any) =>
       a.rawMonth.localeCompare(b.rawMonth)
     )
-  }, [visibleRows])
+  }, [visibleRowsBase])
 
   if (!data) {
     return <main className="p-10">Loading dashboard...</main>
@@ -176,6 +201,30 @@ export default function DashboardPage() {
         </div>
 
         <h3 className="text-sm font-semibold text-slate-500 mb-3">
+          Filter Quarter
+        </h3>
+
+        <div className="flex flex-wrap gap-3 mb-6">
+          {quarterOptions.map((quarter) => {
+            const active = selectedQuarter === quarter
+
+            return (
+              <button
+                key={quarter}
+                onClick={() => setSelectedQuarter(quarter)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                  active
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                {quarter}
+              </button>
+            )
+          })}
+        </div>
+
+        <h3 className="text-sm font-semibold text-slate-500 mb-3">
           Filter Properties
         </h3>
 
@@ -193,7 +242,7 @@ export default function DashboardPage() {
                       : [...current, property.name]
                   )
                 }}
-                className="rounded-full px-4 py-2 text-sm font-semibold text-white"
+                className="rounded-full px-4 py-2 text-sm font-semibold"
                 style={{
                   backgroundColor: active
                     ? propertyColors[property.name] || "#0f172a"
@@ -221,7 +270,7 @@ export default function DashboardPage() {
               <Tooltip />
               <Legend />
 
-              {visibleProperties.map((name: string) => (
+              {sortedVisibleProperties.map((name: string) => (
                 <Bar
                   key={name}
                   dataKey={name}
@@ -247,7 +296,7 @@ export default function DashboardPage() {
               <Tooltip />
               <Legend />
 
-              {visibleProperties.map((name: string) => (
+              {sortedVisibleProperties.map((name: string) => (
                 <Line
                   key={name}
                   type="monotone"
