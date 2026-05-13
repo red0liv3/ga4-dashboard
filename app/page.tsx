@@ -49,23 +49,47 @@ function getQuarter(value: string) {
   return "Q4"
 }
 
-function KpiCard({ label, value }: { label: string; value: string }) {
+function KpiCard({
+  label,
+  value,
+  yoy,
+}: {
+  label: string
+  value: string
+  yoy?: number
+}) {
+  const positive = (yoy || 0) >= 0
+
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm">
       <p className="text-slate-500 mb-2">{label}</p>
-      <h2 className="text-3xl font-bold">{value}</h2>
+
+      <h2 className="text-3xl font-bold mb-2">{value}</h2>
+
+      {yoy !== undefined && (
+        <p
+          className={`text-sm font-semibold ${
+            positive ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {positive ? "↑" : "↓"} {Math.abs(yoy).toFixed(1)}% vs last year
+        </p>
+      )}
     </div>
   )
 }
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null)
+
   const [selectedGroups, setSelectedGroups] = useState<string[]>([
     "Symetri",
     "Technology",
     "Acquisition",
   ])
+
   const [selectedProperties, setSelectedProperties] = useState<string[]>([])
+
   const [selectedQuarter, setSelectedQuarter] = useState("All")
 
   useEffect(() => {
@@ -79,50 +103,72 @@ export default function DashboardPage() {
 
   const groups = useMemo(() => {
     if (!data?.properties) return []
+
     return Array.from(new Set(data.properties.map((p: any) => p.group)))
   }, [data])
 
   const propertiesInSelectedGroups = useMemo(() => {
     if (!data?.properties) return []
-    return data.properties.filter((p: any) => selectedGroups.includes(p.group))
+
+    return data.properties.filter((p: any) =>
+      selectedGroups.includes(p.group)
+    )
   }, [data, selectedGroups])
 
-  const visibleRowsBase = useMemo(() => {
+  const visibleRows = useMemo(() => {
     if (!data?.rows) return []
 
     return data.rows.filter((row: any) => {
       const propertyVisible = selectedProperties.includes(row.property)
       const groupVisible = selectedGroups.includes(row.group)
       const validMonth = row.month && row.month !== "error"
-      const quarterVisible =
-        selectedQuarter === "All" || getQuarter(row.month) === selectedQuarter
 
-      return propertyVisible && groupVisible && validMonth && quarterVisible
+      const quarterVisible =
+        selectedQuarter === "All" ||
+        getQuarter(row.month) === selectedQuarter
+
+      return (
+        propertyVisible &&
+        groupVisible &&
+        validMonth &&
+        quarterVisible
+      )
     })
   }, [data, selectedProperties, selectedGroups, selectedQuarter])
 
-  const sortedVisibleProperties = useMemo(() => {
-    const totalsByProperty: Record<string, number> = {}
+  const totalsByProperty = useMemo(() => {
+    const totals: Record<string, number> = {}
 
-    for (const row of visibleRowsBase) {
-      totalsByProperty[row.property] =
-        (totalsByProperty[row.property] || 0) + (row.sessions || 0)
+    for (const row of visibleRows) {
+      totals[row.property] =
+        (totals[row.property] || 0) + row.sessions
     }
 
+    return totals
+  }, [visibleRows])
+
+  const sortedVisibleProperties = useMemo(() => {
     return propertiesInSelectedGroups
       .filter((p: any) => selectedProperties.includes(p.name))
       .map((p: any) => p.name)
-      .sort((a: string, b: string) => {
-        return (totalsByProperty[b] || 0) - (totalsByProperty[a] || 0)
-      })
-  }, [visibleRowsBase, propertiesInSelectedGroups, selectedProperties])
+      .sort(
+        (a: string, b: string) =>
+          (totalsByProperty[b] || 0) -
+          (totalsByProperty[a] || 0)
+      )
+  }, [
+    propertiesInSelectedGroups,
+    selectedProperties,
+    totalsByProperty,
+  ])
 
   const totals = useMemo(() => {
-    return visibleRowsBase.reduce(
+    return visibleRows.reduce(
       (acc: any, row: any) => {
         acc.sessions += row.sessions || 0
         acc.activeUsers += row.activeUsers || 0
         acc.newUsers += row.newUsers || 0
+
         return acc
       },
       {
@@ -131,12 +177,12 @@ export default function DashboardPage() {
         newUsers: 0,
       }
     )
-  }, [visibleRowsBase])
+  }, [visibleRows])
 
   const monthlyData = useMemo(() => {
     const grouped: Record<string, any> = {}
 
-    for (const row of visibleRowsBase) {
+    for (const row of visibleRows) {
       if (!grouped[row.month]) {
         grouped[row.month] = {
           rawMonth: row.month,
@@ -150,7 +196,48 @@ export default function DashboardPage() {
     return Object.values(grouped).sort((a: any, b: any) =>
       a.rawMonth.localeCompare(b.rawMonth)
     )
-  }, [visibleRowsBase])
+  }, [visibleRows])
+
+  const yoy = useMemo(() => {
+    const sortedMonths = [...new Set(visibleRows.map((r: any) => r.month))].sort()
+
+    const currentMonth = sortedMonths[sortedMonths.length - 1]
+    const previousYearMonth = currentMonth
+      ? `${Number(currentMonth.slice(0, 4)) - 1}${currentMonth.slice(4, 6)}`
+      : null
+
+    const currentRows = visibleRows.filter(
+      (r: any) => r.month === currentMonth
+    )
+
+    const previousRows = visibleRows.filter(
+      (r: any) => r.month === previousYearMonth
+    )
+
+    function total(rows: any[], field: string) {
+      return rows.reduce((sum, row) => sum + (row[field] || 0), 0)
+    }
+
+    function percentage(current: number, previous: number) {
+      if (!previous) return 0
+      return ((current - previous) / previous) * 100
+    }
+
+    return {
+      sessions: percentage(
+        total(currentRows, "sessions"),
+        total(previousRows, "sessions")
+      ),
+      users: percentage(
+        total(currentRows, "activeUsers"),
+        total(previousRows, "activeUsers")
+      ),
+      newUsers: percentage(
+        total(currentRows, "newUsers"),
+        total(previousRows, "newUsers")
+      ),
+    }
+  }, [visibleRows])
 
   if (!data) {
     return <main className="p-10">Loading dashboard...</main>
@@ -159,20 +246,39 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-100 p-8">
       <div className="mb-10">
-        <h1 className="text-4xl font-bold">Global Website Dashboard</h1>
+        <h1 className="text-4xl font-bold">
+          Global Website Dashboard
+        </h1>
+
         <p className="text-slate-500 mt-2">
           Blended GA4 reporting across selected properties
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <KpiCard label="Sessions" value={totals.sessions.toLocaleString()} />
-        <KpiCard label="Users" value={totals.activeUsers.toLocaleString()} />
-        <KpiCard label="New Users" value={totals.newUsers.toLocaleString()} />
+        <KpiCard
+          label="Sessions"
+          value={totals.sessions.toLocaleString()}
+          yoy={yoy.sessions}
+        />
+
+        <KpiCard
+          label="Users"
+          value={totals.activeUsers.toLocaleString()}
+          yoy={yoy.users}
+        />
+
+        <KpiCard
+          label="New Users"
+          value={totals.newUsers.toLocaleString()}
+          yoy={yoy.newUsers}
+        />
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm mb-10">
-        <h2 className="text-xl font-semibold mb-4">Filter Groups</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          Filter Groups
+        </h2>
 
         <div className="flex flex-wrap gap-3 mb-6">
           {groups.map((group: any) => {
@@ -247,6 +353,7 @@ export default function DashboardPage() {
                   backgroundColor: active
                     ? propertyColors[property.name] || "#0f172a"
                     : "#cbd5e1",
+
                   color: active ? "white" : "#334155",
                 }}
               >
@@ -299,7 +406,7 @@ export default function DashboardPage() {
               {sortedVisibleProperties.map((name: string) => (
                 <Line
                   key={name}
-                  type="monotone"
+                  type="linear"
                   dataKey={name}
                   stroke={propertyColors[name] || "#64748b"}
                   dot={false}
