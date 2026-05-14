@@ -14,7 +14,7 @@ export async function GET() {
     )
   }
 
-  const channels: Record<string, number> = {}
+  const rows: any[] = []
   const errors: any[] = []
 
   for (const property of ga4Properties) {
@@ -38,33 +38,24 @@ export async function GET() {
       const data = await response.json()
 
       if (!response.ok) {
-        errors.push({
-          property: property.name,
-          error: data,
-        })
+        errors.push({ property: property.name, error: data })
         continue
       }
 
       for (const row of data.rows || []) {
-        const channel = row.dimensionValues?.[0]?.value || "Unknown"
-        const sessions = Number(row.metricValues?.[0]?.value || 0)
-
-        channels[channel] = (channels[channel] || 0) + sessions
+        rows.push({
+          property: property.name,
+          group: property.group,
+          country: property.country,
+          domain: property.domain,
+          channel: row.dimensionValues?.[0]?.value || "Unknown",
+          sessions: Number(row.metricValues?.[0]?.value || 0),
+        })
       }
     } catch (error) {
-      errors.push({
-        property: property.name,
-        error,
-      })
+      errors.push({ property: property.name, error })
     }
   }
-
-  const rows = Object.entries(channels)
-    .map(([channel, sessions]) => ({
-      channel,
-      sessions,
-    }))
-    .sort((a, b) => b.sessions - a.sessions)
 
   return NextResponse.json({
     generatedAt: new Date().toISOString(),

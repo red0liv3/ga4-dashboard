@@ -46,10 +46,13 @@ function formatMonth(value: string) {
   const year = value.slice(0, 4)
   const month = value.slice(4, 6)
 
-  return new Date(Number(year), Number(month) - 1).toLocaleDateString("en-GB", {
-    month: "short",
-    year: "numeric",
-  })
+  return new Date(Number(year), Number(month) - 1).toLocaleDateString(
+    "en-GB",
+    {
+      month: "short",
+      year: "numeric",
+    }
+  )
 }
 
 function isHomepage(url: string) {
@@ -61,7 +64,13 @@ function isHomepage(url: string) {
   }
 }
 
-function KpiCard({ label, value }: { label: string; value: string }) {
+function KpiCard({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) {
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm">
       <p className="text-slate-500 mb-2">{label}</p>
@@ -82,36 +91,47 @@ export default function DashboardPage() {
   ])
 
   const [selectedProperties, setSelectedProperties] = useState<string[]>([])
+
   const [sortField, setSortField] = useState("clicks")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
+
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const RESULTS_PER_PAGE = 10
 
   useEffect(() => {
     fetch("/api/dashboard")
       .then((res) => res.json())
       .then((json) => {
         setData(json)
-        setSelectedProperties(json.properties?.map((p: any) => p.name) || [])
+        setSelectedProperties(
+          json.properties?.map((p: any) => p.name) || []
+        )
       })
 
     fetch("/api/search-console")
       .then((res) => res.json())
       .then(setSearchData)
-      .catch(() => setSearchData(null))
 
     fetch("/api/channels")
       .then((res) => res.json())
       .then(setChannelData)
-      .catch(() => setChannelData(null))
   }, [])
 
   const groups = useMemo(() => {
     if (!data?.properties) return []
-    return Array.from(new Set(data.properties.map((p: any) => p.group)))
+
+    return Array.from(
+      new Set(data.properties.map((p: any) => p.group))
+    )
   }, [data])
 
   const propertiesInSelectedGroups = useMemo(() => {
     if (!data?.properties) return []
-    return data.properties.filter((p: any) => selectedGroups.includes(p.group))
+
+    return data.properties.filter((p: any) =>
+      selectedGroups.includes(p.group)
+    )
   }, [data, selectedGroups])
 
   const visiblePropertyNames = useMemo(() => {
@@ -123,31 +143,13 @@ export default function DashboardPage() {
   const visibleRows = useMemo(() => {
     if (!data?.rows) return []
 
-    return data.rows.filter((row: any) => {
-      return (
+    return data.rows.filter(
+      (row: any) =>
         row.month &&
         row.month !== "error" &&
         visiblePropertyNames.includes(row.property)
-      )
-    })
-  }, [data, visiblePropertyNames])
-
-  const totalsByProperty = useMemo(() => {
-    const totals: Record<string, number> = {}
-
-    for (const row of visibleRows) {
-      totals[row.property] = (totals[row.property] || 0) + row.sessions
-    }
-
-    return totals
-  }, [visibleRows])
-
-  const sortedVisibleProperties = useMemo(() => {
-    return [...visiblePropertyNames].sort(
-      (a: string, b: string) =>
-        (totalsByProperty[b] || 0) - (totalsByProperty[a] || 0)
     )
-  }, [visiblePropertyNames, totalsByProperty])
+  }, [data, visiblePropertyNames])
 
   const totals = useMemo(() => {
     return visibleRows.reduce(
@@ -155,6 +157,7 @@ export default function DashboardPage() {
         acc.sessions += row.sessions || 0
         acc.activeUsers += row.activeUsers || 0
         acc.newUsers += row.newUsers || 0
+
         return acc
       },
       {
@@ -164,6 +167,25 @@ export default function DashboardPage() {
       }
     )
   }, [visibleRows])
+
+  const totalsByProperty = useMemo(() => {
+    const totals: Record<string, number> = {}
+
+    for (const row of visibleRows) {
+      totals[row.property] =
+        (totals[row.property] || 0) + row.sessions
+    }
+
+    return totals
+  }, [visibleRows])
+
+  const sortedVisibleProperties = useMemo(() => {
+    return [...visiblePropertyNames].sort(
+      (a, b) =>
+        (totalsByProperty[b] || 0) -
+        (totalsByProperty[a] || 0)
+    )
+  }, [visiblePropertyNames, totalsByProperty])
 
   const monthlyData = useMemo(() => {
     const grouped: Record<string, any> = {}
@@ -189,11 +211,12 @@ export default function DashboardPage() {
 
     return searchData.pages.filter(
       (page: any) =>
-        visiblePropertyNames.includes(page.property) && !isHomepage(page.page)
+        visiblePropertyNames.includes(page.property) &&
+        !isHomepage(page.page)
     )
   }, [searchData, visiblePropertyNames])
 
-  const visibleSearchPages = useMemo(() => {
+  const sortedSearchPages = useMemo(() => {
     const sorted = [...filteredSearchPages]
 
     sorted.sort((a: any, b: any) => {
@@ -204,14 +227,33 @@ export default function DashboardPage() {
       } else if (sortField === "page") {
         comparison = a.page.localeCompare(b.page)
       } else {
-        comparison = (a[sortField] || 0) - (b[sortField] || 0)
+        comparison =
+          (a[sortField] || 0) - (b[sortField] || 0)
       }
 
-      return sortDirection === "asc" ? comparison : -comparison
+      return sortDirection === "asc"
+        ? comparison
+        : -comparison
     })
 
-    return sorted.slice(0, 25)
-  }, [filteredSearchPages, sortField, sortDirection])
+    return sorted
+  }, [
+    filteredSearchPages,
+    sortField,
+    sortDirection,
+  ])
+
+  const totalPages = Math.min(
+    5,
+    Math.ceil(sortedSearchPages.length / RESULTS_PER_PAGE)
+  )
+
+  const visibleSearchPages = useMemo(() => {
+    const start = (currentPage - 1) * RESULTS_PER_PAGE
+    const end = start + RESULTS_PER_PAGE
+
+    return sortedSearchPages.slice(start, end)
+  }, [sortedSearchPages, currentPage])
 
   const searchTotals = useMemo(() => {
     const clicks = filteredSearchPages.reduce(
@@ -224,12 +266,14 @@ export default function DashboardPage() {
       0
     )
 
-    const ctr = impressions > 0 ? clicks / impressions : 0
+    const ctr =
+      impressions > 0 ? clicks / impressions : 0
 
     const position =
       filteredSearchPages.length > 0
         ? filteredSearchPages.reduce(
-            (sum: number, row: any) => sum + row.position,
+            (sum: number, row: any) =>
+              sum + row.position,
             0
           ) / filteredSearchPages.length
         : 0
@@ -242,46 +286,89 @@ export default function DashboardPage() {
     }
   }, [filteredSearchPages])
 
-  const channelRows = useMemo(() => {
-    if (!channelData?.rows) return []
-    return channelData.rows.slice(0, 8)
-  }, [channelData])
+function channelCategory(channel: string) {
+  const value = channel.toLowerCase()
+
+  if (value.includes("organic")) return "Organic"
+  if (value.includes("paid") || value.includes("display") || value.includes("cross-network")) return "Paid"
+  if (value.includes("social") || value.includes("video")) return "Social"
+  if (value.includes("email")) return "Email"
+  if (value.includes("referral")) return "Referral"
+  if (value.includes("direct")) return "Direct"
+
+  return "Other"
+}
+
+const filteredChannels = useMemo(() => {
+  if (!channelData?.rows) return []
+
+  const grouped: Record<string, number> = {}
+
+  for (const row of channelData.rows) {
+    if (!visiblePropertyNames.includes(row.property)) continue
+
+    const category = channelCategory(row.channel)
+
+    grouped[category] = (grouped[category] || 0) + row.sessions
+  }
+
+  return Object.entries(grouped)
+    .map(([channel, sessions]) => ({
+      channel,
+      sessions,
+    }))
+    .sort((a, b) => b.sessions - a.sessions)
+}, [channelData, visiblePropertyNames])
 
   const totalChannelSessions = useMemo(() => {
-    return channelRows.reduce(
+    return filteredChannels.reduce(
       (sum: number, row: any) => sum + row.sessions,
       0
     )
-  }, [channelRows])
+  }, [filteredChannels])
 
   function handleSort(field: string) {
+    setCurrentPage(1)
+
     if (sortField === field) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+      setSortDirection((current) =>
+        current === "asc" ? "desc" : "asc"
+      )
     } else {
       setSortField(field)
       setSortDirection("desc")
     }
   }
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedGroups, selectedProperties])
+
   if (!data) {
-    return <main className="p-10">Loading dashboard...</main>
+    return <main className="p-10">Loading...</main>
   }
 
   return (
     <main className="min-h-screen bg-slate-100 p-8">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold">Global Website Dashboard</h1>
+        <h1 className="text-4xl font-bold">
+          Global Website Dashboard
+        </h1>
+
         <p className="text-slate-500 mt-2">
-          Blended GA4 and Search Console reporting across selected properties
+          Blended GA4 and Search Console reporting
         </p>
       </div>
 
       <div className="sticky top-4 z-50 bg-white rounded-2xl p-6 shadow-sm mb-10">
-        <h2 className="text-xl font-semibold mb-4">Filters</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          Filters
+        </h2>
 
         <div className="flex flex-wrap gap-3 mb-6">
           {groups.map((group: any) => {
-            const active = selectedGroups.includes(group)
+            const active =
+              selectedGroups.includes(group)
 
             return (
               <button
@@ -289,7 +376,9 @@ export default function DashboardPage() {
                 onClick={() => {
                   setSelectedGroups((current) =>
                     active
-                      ? current.filter((g) => g !== group)
+                      ? current.filter(
+                          (g) => g !== group
+                        )
                       : [...current, group]
                   )
                 }}
@@ -305,43 +394,66 @@ export default function DashboardPage() {
           })}
         </div>
 
-        <h3 className="text-sm font-semibold text-slate-500 mb-3">
-          Filter Properties
-        </h3>
-
         <div className="flex flex-wrap gap-3">
-          {propertiesInSelectedGroups.map((property: any) => {
-            const active = selectedProperties.includes(property.name)
+          {propertiesInSelectedGroups.map(
+            (property: any) => {
+              const active =
+                selectedProperties.includes(
+                  property.name
+                )
 
-            return (
-              <button
-                key={property.name}
-                onClick={() => {
-                  setSelectedProperties((current) =>
-                    active
-                      ? current.filter((p) => p !== property.name)
-                      : [...current, property.name]
-                  )
-                }}
-                className="rounded-full px-4 py-2 text-sm font-semibold"
-                style={{
-                  backgroundColor: active
-                    ? propertyColors[property.name] || "#0f172a"
-                    : "#cbd5e1",
-                  color: active ? "white" : "#334155",
-                }}
-              >
-                {property.name}
-              </button>
-            )
-          })}
+              return (
+                <button
+                  key={property.name}
+                  onClick={() => {
+                    setSelectedProperties(
+                      (current) =>
+                        active
+                          ? current.filter(
+                              (p) =>
+                                p !== property.name
+                            )
+                          : [
+                              ...current,
+                              property.name,
+                            ]
+                    )
+                  }}
+                  className="rounded-full px-4 py-2 text-sm font-semibold"
+                  style={{
+                    backgroundColor: active
+                      ? propertyColors[
+                          property.name
+                        ] || "#0f172a"
+                      : "#cbd5e1",
+                    color: active
+                      ? "white"
+                      : "#334155",
+                  }}
+                >
+                  {property.name}
+                </button>
+              )
+            }
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <KpiCard label="Sessions" value={totals.sessions.toLocaleString()} />
-        <KpiCard label="Users" value={totals.activeUsers.toLocaleString()} />
-        <KpiCard label="New Users" value={totals.newUsers.toLocaleString()} />
+        <KpiCard
+          label="Sessions"
+          value={totals.sessions.toLocaleString()}
+        />
+
+        <KpiCard
+          label="Users"
+          value={totals.activeUsers.toLocaleString()}
+        />
+
+        <KpiCard
+          label="New Users"
+          value={totals.newUsers.toLocaleString()}
+        />
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm mb-10">
@@ -350,21 +462,29 @@ export default function DashboardPage() {
         </h2>
 
         <div className="h-[500px]">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+          >
             <BarChart data={monthlyData}>
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
               <Legend />
 
-              {sortedVisibleProperties.map((name: string) => (
-                <Bar
-                  key={name}
-                  dataKey={name}
-                  stackId="a"
-                  fill={propertyColors[name] || "#64748b"}
-                />
-              ))}
+              {sortedVisibleProperties.map(
+                (name: string) => (
+                  <Bar
+                    key={name}
+                    dataKey={name}
+                    stackId="a"
+                    fill={
+                      propertyColors[name] ||
+                      "#64748b"
+                    }
+                  />
+                )
+              )}
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -376,71 +496,93 @@ export default function DashboardPage() {
         </h2>
 
         <div className="h-[500px]">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+          >
             <LineChart data={monthlyData}>
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
               <Legend />
 
-              {sortedVisibleProperties.map((name: string) => (
-                <Line
-                  key={name}
-                  type="linear"
-                  dataKey={name}
-                  stroke={propertyColors[name] || "#64748b"}
-                  dot={false}
-                />
-              ))}
+              {sortedVisibleProperties.map(
+                (name: string) => (
+                  <Line
+                    key={name}
+                    type="linear"
+                    dataKey={name}
+                    stroke={
+                      propertyColors[name] ||
+                      "#64748b"
+                    }
+                    dot={false}
+                  />
+                )
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm mb-10">
-        <h2 className="text-2xl font-semibold mb-4">
+        <h2 className="text-2xl font-semibold mb-6">
           Traffic Acquisition Mix
         </h2>
 
-        {!channelData ? (
-          <p className="text-slate-500">Loading channel data...</p>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="h-[420px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={channelRows}
-                    dataKey="sessions"
-                    nameKey="channel"
-                    innerRadius={90}
-                    outerRadius={150}
-                    paddingAngle={2}
-                  >
-                    {channelRows.map((entry: any, index: number) => (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          <div className="h-[420px]">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+            >
+              <PieChart>
+                <Pie
+                  data={filteredChannels}
+                  dataKey="sessions"
+                  nameKey="channel"
+                  innerRadius={90}
+                  outerRadius={150}
+                  paddingAngle={2}
+                >
+                  {filteredChannels.map(
+                    (entry: any, index: number) => (
                       <Cell
                         key={entry.channel}
-                        fill={channelColors[index % channelColors.length]}
+                        fill={
+                          channelColors[
+                            index %
+                              channelColors.length
+                          ]
+                        }
                       />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+                    )
+                  )}
+                </Pie>
 
-            <div>
-              <p className="text-slate-500 mb-2">Top channel sessions</p>
-              <h3 className="text-4xl font-bold mb-6">
-                {totalChannelSessions.toLocaleString()}
-              </h3>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
 
-              <div className="space-y-3">
-                {channelRows.map((row: any, index: number) => {
+          <div>
+            <p className="text-slate-500 mb-2">
+              Total sessions by channel
+            </p>
+
+            <h3 className="text-4xl font-bold mb-6">
+              {totalChannelSessions.toLocaleString()}
+            </h3>
+
+            <div className="space-y-3">
+              {filteredChannels.map(
+                (row: any, index: number) => {
                   const percent =
                     totalChannelSessions > 0
-                      ? (row.sessions / totalChannelSessions) * 100
+                      ? (row.sessions /
+                          totalChannelSessions) *
+                        100
                       : 0
 
                   return (
@@ -453,27 +595,34 @@ export default function DashboardPage() {
                           className="h-3 w-3 rounded-full"
                           style={{
                             backgroundColor:
-                              channelColors[index % channelColors.length],
+                              channelColors[
+                                index %
+                                  channelColors.length
+                              ],
                           }}
                         />
-                        <span className="font-medium">{row.channel}</span>
+
+                        <span className="font-medium">
+                          {row.channel}
+                        </span>
                       </div>
 
                       <div className="text-right">
                         <div className="font-semibold">
                           {row.sessions.toLocaleString()}
                         </div>
+
                         <div className="text-xs text-slate-500">
                           {percent.toFixed(1)}%
                         </div>
                       </div>
                     </div>
                   )
-                })}
-              </div>
+                }
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
@@ -481,14 +630,19 @@ export default function DashboardPage() {
           label="Organic Clicks"
           value={searchTotals.clicks.toLocaleString()}
         />
+
         <KpiCard
           label="Search Impressions"
           value={searchTotals.impressions.toLocaleString()}
         />
+
         <KpiCard
           label="Average CTR"
-          value={`${(searchTotals.ctr * 100).toFixed(1)}%`}
+          value={`${(
+            searchTotals.ctr * 100
+          ).toFixed(1)}%`}
         />
+
         <KpiCard
           label="Average Position"
           value={searchTotals.position.toFixed(1)}
@@ -500,56 +654,77 @@ export default function DashboardPage() {
           Top Organic Landing Pages
         </h2>
 
-        {!searchData ? (
-          <p className="text-slate-500">Loading Search Console data...</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-slate-500">
-                  <th
-                    className="py-3 pr-4 cursor-pointer"
-                    onClick={() => handleSort("property")}
-                  >
-                    Property
-                  </th>
-                  <th
-                    className="py-3 pr-4 cursor-pointer"
-                    onClick={() => handleSort("page")}
-                  >
-                    Page
-                  </th>
-                  <th
-                    className="py-3 pr-4 text-right cursor-pointer"
-                    onClick={() => handleSort("clicks")}
-                  >
-                    Clicks
-                  </th>
-                  <th
-                    className="py-3 pr-4 text-right cursor-pointer"
-                    onClick={() => handleSort("impressions")}
-                  >
-                    Impressions
-                  </th>
-                  <th
-                    className="py-3 pr-4 text-right cursor-pointer"
-                    onClick={() => handleSort("ctr")}
-                  >
-                    CTR
-                  </th>
-                  <th
-                    className="py-3 pr-4 text-right cursor-pointer"
-                    onClick={() => handleSort("position")}
-                  >
-                    Position
-                  </th>
-                </tr>
-              </thead>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-slate-500">
+                <th
+                  className="py-3 pr-4 cursor-pointer"
+                  onClick={() =>
+                    handleSort("property")
+                  }
+                >
+                  Property
+                </th>
 
-              <tbody>
-                {visibleSearchPages.map((page: any, index: number) => (
-                  <tr key={`${page.page}-${index}`} className="border-b">
-                    <td className="py-3 pr-4 font-medium">{page.property}</td>
+                <th
+                  className="py-3 pr-4 cursor-pointer"
+                  onClick={() =>
+                    handleSort("page")
+                  }
+                >
+                  Page
+                </th>
+
+                <th
+                  className="py-3 pr-4 text-right cursor-pointer"
+                  onClick={() =>
+                    handleSort("clicks")
+                  }
+                >
+                  Clicks
+                </th>
+
+                <th
+                  className="py-3 pr-4 text-right cursor-pointer"
+                  onClick={() =>
+                    handleSort("impressions")
+                  }
+                >
+                  Impressions
+                </th>
+
+                <th
+                  className="py-3 pr-4 text-right cursor-pointer"
+                  onClick={() =>
+                    handleSort("ctr")
+                  }
+                >
+                  CTR
+                </th>
+
+                <th
+                  className="py-3 pr-4 text-right cursor-pointer"
+                  onClick={() =>
+                    handleSort("position")
+                  }
+                >
+                  Position
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {visibleSearchPages.map(
+                (page: any, index: number) => (
+                  <tr
+                    key={`${page.page}-${index}`}
+                    className="border-b"
+                  >
+                    <td className="py-3 pr-4 font-medium">
+                      {page.property}
+                    </td>
+
                     <td className="py-3 pr-4 max-w-xl truncate">
                       <a
                         href={page.page}
@@ -560,31 +735,70 @@ export default function DashboardPage() {
                         {page.page}
                       </a>
                     </td>
+
                     <td className="py-3 pr-4 text-right">
                       {page.clicks.toLocaleString()}
                     </td>
+
                     <td className="py-3 pr-4 text-right">
                       {page.impressions.toLocaleString()}
                     </td>
+
                     <td className="py-3 pr-4 text-right">
-                      {(page.ctr * 100).toFixed(1)}%
+                      {(
+                        page.ctr * 100
+                      ).toFixed(1)}
+                      %
                     </td>
+
                     <td className="py-3 pr-4 text-right">
                       {page.position.toFixed(1)}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                )
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        {searchData?.errors?.length > 0 && (
-          <p className="text-sm text-amber-600 mt-4">
-            Some Search Console properties could not be loaded. This does not
-            affect the rest of the dashboard.
-          </p>
-        )}
+        <div className="flex items-center justify-center gap-2 mt-6">
+          <button
+            disabled={currentPage === 1}
+            onClick={() =>
+              setCurrentPage((p) => p - 1)
+            }
+            className="px-3 py-2 rounded bg-slate-200 disabled:opacity-50"
+          >
+            Prev
+          </button>
+
+          {Array.from(
+            { length: totalPages },
+            (_, i) => i + 1
+          ).map((page) => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`px-3 py-2 rounded ${
+                currentPage === page
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-200"
+              }`}
+            >
+              {page}
+            </button>
+          ))}
+
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() =>
+              setCurrentPage((p) => p + 1)
+            }
+            className="px-3 py-2 rounded bg-slate-200 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </main>
   )
