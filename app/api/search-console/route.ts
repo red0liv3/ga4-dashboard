@@ -18,7 +18,7 @@ export async function GET() {
     )
   }
 
-  const results: any[] = []
+  const pages: any[] = []
   const errors: any[] = []
 
   for (const property of ga4Properties) {
@@ -39,7 +39,7 @@ export async function GET() {
             startDate: "2025-05-01",
             endDate: "2026-05-12",
             dimensions: ["page"],
-            rowLimit: 10,
+            rowLimit: 25,
           }),
         }
       )
@@ -50,31 +50,64 @@ export async function GET() {
         errors.push({
           property: property.name,
           domain: property.domain,
-          siteUrl,
           error: data,
         })
+
         continue
       }
 
-      results.push({
-        property: property.name,
-        domain: property.domain,
-        siteUrl,
-        rows: data.rows || [],
-      })
+      for (const row of data.rows || []) {
+        pages.push({
+          property: property.name,
+          domain: property.domain,
+          page: row.keys?.[0] || "",
+          clicks: row.clicks || 0,
+          impressions: row.impressions || 0,
+          ctr: row.ctr || 0,
+          position: row.position || 0,
+        })
+      }
     } catch (error) {
       errors.push({
         property: property.name,
         domain: property.domain,
-        siteUrl,
         error,
       })
     }
   }
 
+  const totals = pages.reduce(
+    (acc, page) => {
+      acc.clicks += page.clicks
+      acc.impressions += page.impressions
+      return acc
+    },
+    {
+      clicks: 0,
+      impressions: 0,
+    }
+  )
+
+  const averageCtr =
+    totals.impressions > 0
+      ? totals.clicks / totals.impressions
+      : 0
+
+  const averagePosition =
+    pages.length > 0
+      ? pages.reduce((sum, p) => sum + p.position, 0) /
+        pages.length
+      : 0
+
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
-    results,
+    totals: {
+      clicks: totals.clicks,
+      impressions: totals.impressions,
+      ctr: averageCtr,
+      position: averagePosition,
+    },
+    pages,
     errors,
   })
 }
