@@ -16,7 +16,7 @@ export const authOptions = {
       },
     }),
   ],
-  callbacks: {
+  callbacks: { 
     async jwt({ token, account }: any) {
       if (account?.access_token) {
         token.accessToken = account.access_token
