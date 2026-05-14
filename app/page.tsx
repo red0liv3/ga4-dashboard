@@ -11,6 +11,9 @@ import {
   Legend,
   LineChart,
   Line,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts"
 
 const propertyColors: Record<string, string> = {
@@ -27,6 +30,17 @@ const propertyColors: Record<string, string> = {
   "FF Solutions": "#eab308",
   SolidCAD: "#be123c",
 }
+
+const channelColors = [
+  "#2563eb",
+  "#16a34a",
+  "#f97316",
+  "#dc2626",
+  "#7c3aed",
+  "#0f766e",
+  "#eab308",
+  "#64748b",
+]
 
 function formatMonth(value: string) {
   const year = value.slice(0, 4)
@@ -59,6 +73,7 @@ function KpiCard({ label, value }: { label: string; value: string }) {
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null)
   const [searchData, setSearchData] = useState<any>(null)
+  const [channelData, setChannelData] = useState<any>(null)
 
   const [selectedGroups, setSelectedGroups] = useState<string[]>([
     "Symetri",
@@ -82,6 +97,11 @@ export default function DashboardPage() {
       .then((res) => res.json())
       .then(setSearchData)
       .catch(() => setSearchData(null))
+
+    fetch("/api/channels")
+      .then((res) => res.json())
+      .then(setChannelData)
+      .catch(() => setChannelData(null))
   }, [])
 
   const groups = useMemo(() => {
@@ -221,6 +241,18 @@ export default function DashboardPage() {
       position,
     }
   }, [filteredSearchPages])
+
+  const channelRows = useMemo(() => {
+    if (!channelData?.rows) return []
+    return channelData.rows.slice(0, 8)
+  }, [channelData])
+
+  const totalChannelSessions = useMemo(() => {
+    return channelRows.reduce(
+      (sum: number, row: any) => sum + row.sessions,
+      0
+    )
+  }, [channelRows])
 
   function handleSort(field: string) {
     if (sortField === field) {
@@ -363,6 +395,85 @@ export default function DashboardPage() {
             </LineChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl p-6 shadow-sm mb-10">
+        <h2 className="text-2xl font-semibold mb-4">
+          Traffic Acquisition Mix
+        </h2>
+
+        {!channelData ? (
+          <p className="text-slate-500">Loading channel data...</p>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="h-[420px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={channelRows}
+                    dataKey="sessions"
+                    nameKey="channel"
+                    innerRadius={90}
+                    outerRadius={150}
+                    paddingAngle={2}
+                  >
+                    {channelRows.map((entry: any, index: number) => (
+                      <Cell
+                        key={entry.channel}
+                        fill={channelColors[index % channelColors.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div>
+              <p className="text-slate-500 mb-2">Top channel sessions</p>
+              <h3 className="text-4xl font-bold mb-6">
+                {totalChannelSessions.toLocaleString()}
+              </h3>
+
+              <div className="space-y-3">
+                {channelRows.map((row: any, index: number) => {
+                  const percent =
+                    totalChannelSessions > 0
+                      ? (row.sessions / totalChannelSessions) * 100
+                      : 0
+
+                  return (
+                    <div
+                      key={row.channel}
+                      className="flex items-center justify-between border-b pb-2"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="h-3 w-3 rounded-full"
+                          style={{
+                            backgroundColor:
+                              channelColors[index % channelColors.length],
+                          }}
+                        />
+                        <span className="font-medium">{row.channel}</span>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="font-semibold">
+                          {row.sessions.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {percent.toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
