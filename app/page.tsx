@@ -162,10 +162,16 @@ export default function DashboardPage() {
   const visibleRows = useMemo(() => {
     if (!data?.rows) return []
 
+    const currentMonth = new Date()
+      .toISOString()
+      .slice(0, 7)
+      .replace("-", "")
+
     return data.rows.filter(
       (row: any) =>
         row.month &&
         row.month !== "error" &&
+        row.month !== currentMonth &&
         visiblePropertyNames.includes(row.property)
     )
   }, [data, visiblePropertyNames])
@@ -176,16 +182,26 @@ export default function DashboardPage() {
         acc.sessions += row.sessions || 0
         acc.activeUsers += row.activeUsers || 0
         acc.newUsers += row.newUsers || 0
+        acc.engagedSessions += row.engagedSessions || 0
+        acc.userEngagementDuration += row.userEngagementDuration || 0        
         return acc
       },
       {
         sessions: 0,
         activeUsers: 0,
         newUsers: 0,
+        engagedSessions: 0,
+        userEngagementDuration: 0,
       }
     )
   }, [visibleRows])
 
+  const engagementRate =
+    totals.sessions > 0 ? totals.engagedSessions / totals.sessions : 0
+
+  const averageEngagementTime =
+    totals.activeUsers > 0 ? totals.userEngagementDuration / totals.activeUsers : 0
+  
   const totalsByProperty = useMemo(() => {
     const totals: Record<string, number> = {}
 
@@ -221,12 +237,50 @@ export default function DashboardPage() {
     )
   }, [visibleRows])
 
+  const engagementTrendData = useMemo(() => {
+    const grouped: Record<string, any> = {}
+
+    for (const row of visibleRows) {
+      if (!grouped[row.month]) {
+        grouped[row.month] = {
+          rawMonth: row.month,
+          month: formatMonth(row.month),
+        }
+      }
+
+      const sessions = row.sessions || 0
+      const engagedSessions = row.engagedSessions || 0
+
+      grouped[row.month][row.property] =
+        sessions > 0
+          ? (engagedSessions / sessions) * 100
+          : 0
+    }
+
+    return Object.values(grouped).sort((a: any, b: any) =>
+      a.rawMonth.localeCompare(b.rawMonth)
+    )
+  }, [visibleRows]) 
+
   const weeklyChartData = useMemo(() => {
     if (!weeklyData?.rows) return []
 
     const grouped: Record<string, any> = {}
 
     for (const row of weeklyData.rows) {
+      const currentMonth = new Date()
+        .toISOString()
+        .slice(0, 7)
+        .replace("-", "")
+
+      if (row.week?.startsWith(currentMonth.slice(0, 4))) {
+        const weekMonth = formatWeekLabel(row.week)
+        const thisMonth = new Date().toLocaleDateString("en-GB", {
+          month: "short",
+        })
+
+        if (weekMonth === thisMonth) continue
+      }      
       if (!visiblePropertyNames.includes(row.property)) continue
 
       if (!grouped[row.week]) {
@@ -452,7 +506,16 @@ export default function DashboardPage() {
             <BarChart data={monthlyData}>
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip />
+              <Tooltip
+                wrapperStyle={{
+                  zIndex: 9999,
+                }}
+                contentStyle={{
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "12px",
+                }}
+              />
               <Legend />
 
               {sortedVisibleProperties.map((name: string) => (
@@ -478,9 +541,17 @@ export default function DashboardPage() {
             <LineChart data={weeklyChartData}>
               <XAxis dataKey="week" interval={3} />
               <YAxis />
-              <Tooltip />
+              <Tooltip
+                wrapperStyle={{
+                  zIndex: 9999,
+                }}
+                contentStyle={{
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "12px",
+                }}
+              />
               <Legend />
-
               {sortedVisibleProperties.map((name: string) => (
                 <Line
                   key={name}
@@ -523,7 +594,16 @@ export default function DashboardPage() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    wrapperStyle={{
+                      zIndex: 9999,
+                    }}
+                    contentStyle={{
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "12px",
+                    }}
+                  />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -574,6 +654,67 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <KpiCard
+          label="Engaged Sessions"
+          value={totals.engagedSessions.toLocaleString()}
+        />
+
+        <KpiCard
+          label="Avg Engagement Time"
+          value={`${Math.round(averageEngagementTime)}s`}
+        />
+
+        <KpiCard
+          label="Engagement Rate"
+          value={`${(engagementRate * 100).toFixed(1)}%`}
+        />
+      </div>      
+
+      <div className="bg-white rounded-2xl p-6 shadow-sm mb-10">
+        <h2 className="text-2xl font-semibold mb-4">
+          Engagement Rate Trend
+        </h2>
+
+        <div className="h-[360px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={engagementTrendData}>
+              <XAxis dataKey="month" />
+
+              <YAxis tickFormatter={(value) => `${value}%`} />
+
+                <Tooltip
+                  formatter={(value: any) =>
+                    `${Number(value).toFixed(1)}%`
+                  }
+                  wrapperStyle={{
+                    zIndex: 9999,
+                  }}
+                  contentStyle={{
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "12px",
+                    opacity: 1,
+                  }}
+                />
+
+              <Legend />
+
+              {sortedVisibleProperties.map((name: string) => (
+                <Line
+                  key={name}
+                  type="linear"
+                  dataKey={name}
+                  stroke={propertyColors[name] || "#64748b"}
+                  strokeWidth={2}
+                  dot={{ r: 1.5 }}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>      
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
 
