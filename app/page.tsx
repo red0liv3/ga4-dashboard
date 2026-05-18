@@ -144,6 +144,7 @@ export default function DashboardPage() {
   const [searchData, setSearchData] = useState<any>(null)
   const [channelData, setChannelData] = useState<any>(null)
   const [weeklyData, setWeeklyData] = useState<any>(null)
+  const [searchMonthlyData, setSearchMonthlyData] = useState<any>(null)
 
   const [selectedGroups, setSelectedGroups] = useState<string[]>([
     "Symetri",
@@ -173,6 +174,11 @@ export default function DashboardPage() {
       .then((res) => res.json())
       .then(setChannelData)
       .catch(() => setChannelData(null))
+
+    fetch("/api/search-console-monthly")
+      .then((res) => res.json())
+      .then(setSearchMonthlyData)
+      .catch(() => setSearchMonthlyData(null))
 
     fetch("/api/weekly-trends")
       .then((res) => res.json())
@@ -329,6 +335,51 @@ const monthComparison = useMemo(() => {
     usersYoy: percentChange(latestUsers, lastYearUsers),
   }
 }, [monthlyData, sortedVisibleProperties])
+
+const searchComparison = useMemo(() => {
+  if (!searchMonthlyData?.rows) return null
+
+  const currentMonth = new Date()
+    .toISOString()
+    .slice(0, 7)
+    .replace("-", "")
+
+  const grouped: Record<string, number> = {}
+
+  for (const row of searchMonthlyData.rows) {
+    if (!visiblePropertyNames.includes(row.property)) continue
+
+    const month = row.date.slice(0, 7).replace("-", "")
+
+    if (month === currentMonth) continue
+
+    grouped[month] = (grouped[month] || 0) + row.clicks
+  }
+
+  const months = Object.keys(grouped).sort()
+
+  if (months.length < 2) return null
+
+  const latestMonth = months[months.length - 1]
+  const previousMonth = months[months.length - 2]
+
+  const sameMonthLastYear = `${
+    Number(latestMonth.slice(0, 4)) - 1
+  }${latestMonth.slice(4, 6)}`
+
+  function percentChange(current: number, previous: number) {
+    if (!previous) return undefined
+    return ((current - previous) / previous) * 100
+  }
+
+  return {
+    clicksMom: percentChange(grouped[latestMonth], grouped[previousMonth]),
+    clicksYoy: percentChange(grouped[latestMonth], grouped[sameMonthLastYear]),
+  }
+}, [searchMonthlyData, visiblePropertyNames])
+
+
+
 
   const engagementTrendData = useMemo(() => {
     const grouped: Record<string, any> = {}
@@ -590,6 +641,8 @@ const monthComparison = useMemo(() => {
   <KpiCard
     label="Organic Clicks"
     value={searchTotals.clicks.toLocaleString()}
+    mom={searchComparison?.clicksMom}
+    yoy={searchComparison?.clicksYoy}
   />
 </div>
 
