@@ -40,7 +40,7 @@ export async function GET() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            dateRanges: [{ startDate: "365daysAgo", endDate: "today" }],
+            dateRanges: [{ startDate: "2025-04-01", endDate: "today" }],
             dimensions: [{ name: "yearMonth" }],
             metrics: [
               { name: "sessions" },

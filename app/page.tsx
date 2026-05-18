@@ -93,11 +93,48 @@ function channelCategory(channel: string) {
   return "Other"
 }
 
-function KpiCard({ label, value }: { label: string; value: string }) {
+function KpiCard({
+  label,
+  value,
+  mom,
+  yoy,
+}: {
+  label: string
+  value: string
+  mom?: number
+  yoy?: number
+}) {
+  function ChangeLine({
+    label,
+    value,
+  }: {
+    label: string
+    value?: number
+  }) {
+    if (value === undefined) return null
+
+    const positive = value >= 0
+
+    return (
+      <p
+        className={`mt-1 text-sm font-medium ${
+          positive ? "text-green-600" : "text-red-600"
+        }`}
+      >
+        {positive ? "↑" : "↓"} {Math.abs(value).toFixed(1)}% {label}
+      </p>
+    )
+  }
+
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm">
       <p className="text-slate-500 mb-2">{label}</p>
       <h2 className="text-3xl font-bold">{value}</h2>
+
+      <div className="mt-3">
+        <ChangeLine label="MoM" value={mom} />
+        <ChangeLine label="YoY" value={yoy} />
+      </div>
     </div>
   )
 }
@@ -230,12 +267,68 @@ export default function DashboardPage() {
       }
 
       grouped[row.month][row.property] = row.sessions
+      grouped[row.month][`${row.property}_users`] = row.activeUsers
     }
 
     return Object.values(grouped).sort((a: any, b: any) =>
       a.rawMonth.localeCompare(b.rawMonth)
     )
   }, [visibleRows])
+
+const monthComparison = useMemo(() => {
+  if (monthlyData.length < 2) return null
+
+  function totalForMonth(monthRow: any, keys: string[]) {
+    return keys.reduce((sum, key) => sum + (monthRow[key] || 0), 0)
+  }
+
+  function percentChange(current: number, previous: number) {
+    if (!previous) return undefined
+    return ((current - previous) / previous) * 100
+  }
+
+  const latest = monthlyData[monthlyData.length - 1]
+  const previous = monthlyData[monthlyData.length - 2]
+
+  const latestRawMonth = latest.rawMonth
+  const sameMonthLastYear = `${
+    Number(latestRawMonth.slice(0, 4)) - 1
+  }${latestRawMonth.slice(4, 6)}`
+
+  const lastYear = monthlyData.find(
+    (row: any) => row.rawMonth === sameMonthLastYear
+  )
+
+  const latestSessions = totalForMonth(latest, sortedVisibleProperties)
+  const previousSessions = totalForMonth(previous, sortedVisibleProperties)
+  const lastYearSessions = lastYear
+    ? totalForMonth(lastYear, sortedVisibleProperties)
+    : 0
+
+  const latestUsers = totalForMonth(
+    latest,
+    sortedVisibleProperties.map((p) => `${p}_users`)
+  )
+
+  const previousUsers = totalForMonth(
+    previous,
+    sortedVisibleProperties.map((p) => `${p}_users`)
+  )
+
+  const lastYearUsers = lastYear
+    ? totalForMonth(
+        lastYear,
+        sortedVisibleProperties.map((p) => `${p}_users`)
+      )
+    : 0
+
+  return {
+    sessionsMom: percentChange(latestSessions, previousSessions),
+    sessionsYoy: percentChange(latestSessions, lastYearSessions),
+    usersMom: percentChange(latestUsers, previousUsers),
+    usersYoy: percentChange(latestUsers, lastYearUsers),
+  }
+}, [monthlyData, sortedVisibleProperties])
 
   const engagementTrendData = useMemo(() => {
     const grouped: Record<string, any> = {}
@@ -483,11 +576,15 @@ export default function DashboardPage() {
   <KpiCard
     label="Sessions"
     value={totals.sessions.toLocaleString()}
+    mom={monthComparison?.sessionsMom}
+    yoy={monthComparison?.sessionsYoy}
   />
 
   <KpiCard
     label="Users"
     value={totals.activeUsers.toLocaleString()}
+    mom={monthComparison?.usersMom}
+    yoy={monthComparison?.usersYoy}
   />
 
   <KpiCard
