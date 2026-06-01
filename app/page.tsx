@@ -281,6 +281,10 @@ export default function DashboardPage() {
     )
   }, [visibleRows])
 
+  const monthlyChartData = useMemo(() => {
+    return monthlyData.slice(-12)
+  }, [monthlyData])
+
 const monthComparison = useMemo(() => {
   if (monthlyData.length < 2) return null
 
@@ -653,7 +657,7 @@ const searchComparison = useMemo(() => {
 
         <div className="h-[500px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyData}>
+            <BarChart data={monthlyChartData}>
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip
@@ -689,7 +693,7 @@ const searchComparison = useMemo(() => {
         <div className="h-[500px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={weeklyChartData}>
-              <XAxis dataKey="week" interval={3} />
+              <XAxis dataKey="week" interval={4} />
               <YAxis />
               <Tooltip
                 wrapperStyle={{
