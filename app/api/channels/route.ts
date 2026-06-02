@@ -29,7 +29,10 @@ export async function GET() {
           },
           body: JSON.stringify({
             dateRanges: [{ startDate: "365daysAgo", endDate: "today" }],
-            dimensions: [{ name: "sessionDefaultChannelGroup" }],
+            dimensions: [
+              { name: "yearMonth" },
+              { name: "sessionDefaultChannelGroup" },
+            ],
             metrics: [{ name: "sessions" }],
           }),
         }
@@ -48,7 +51,8 @@ export async function GET() {
           group: property.group,
           country: property.country,
           domain: property.domain,
-          channel: row.dimensionValues?.[0]?.value || "Unknown",
+          month: row.dimensionValues?.[0]?.value || "",
+          channel: row.dimensionValues?.[1]?.value || "Unknown",
           sessions: Number(row.metricValues?.[0]?.value || 0),
         })
       }

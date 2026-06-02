@@ -588,25 +588,37 @@ const searchComparison = useMemo(() => {
     }
   }, [filteredSearchPages])
 
-  const filteredChannels = useMemo(() => {
-    if (!channelData?.rows) return []
+const filteredChannels = useMemo(() => {
+  if (!channelData?.rows) return []
 
-    const grouped: Record<string, number> = {}
+  const availableMonths = Array.from(
+    new Set(
+      channelData.rows
+        .filter((r: any) => visiblePropertyNames.includes(r.property))
+        .map((r: any) => r.month)
+    )
+  )
+    .sort()
+    .slice(chartRange === "1" ? -1 : chartRange === "3" ? -3 : -12)
 
-    for (const row of channelData.rows) {
-      if (!visiblePropertyNames.includes(row.property)) continue
+  const grouped: Record<string, number> = {}
 
-      const category = channelCategory(row.channel)
-      grouped[category] = (grouped[category] || 0) + row.sessions
-    }
+  for (const row of channelData.rows) {
+    if (!visiblePropertyNames.includes(row.property)) continue
+    if (!availableMonths.includes(row.month)) continue
 
-    return Object.entries(grouped)
-      .map(([channel, sessions]) => ({
-        channel,
-        sessions,
-      }))
-      .sort((a, b) => b.sessions - a.sessions)
-  }, [channelData, visiblePropertyNames])
+    const category = channelCategory(row.channel)
+
+    grouped[category] = (grouped[category] || 0) + row.sessions
+  }
+
+  return Object.entries(grouped)
+    .map(([channel, sessions]) => ({
+      channel,
+      sessions,
+    }))
+    .sort((a, b) => b.sessions - a.sessions)
+}, [channelData, visiblePropertyNames, chartRange])
 
   const totalChannelSessions = useMemo(() => {
     return filteredChannels.reduce(
