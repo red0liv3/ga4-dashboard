@@ -43,6 +43,9 @@ export async function GET() {
               {
                 name: "sessions",
               },
+              {
+                name: "engagedSessions",
+              },
             ],
           }),
         }
@@ -68,6 +71,9 @@ export async function GET() {
           week: row.dimensionValues?.[0]?.value,
           sessions: Number(
             row.metricValues?.[0]?.value || 0
+          ),
+          engagedSessions: Number(
+            row.metricValues?.[1]?.value || 0
           ),
         })
       }

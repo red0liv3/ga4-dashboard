@@ -521,6 +521,47 @@ const searchComparison = useMemo(() => {
     )
   }, [weeklyData, visiblePropertyNames])
 
+  const weeklyEngagementData = useMemo(() => {
+    if (!weeklyData?.rows) return []
+
+    const grouped: Record<string, any> = {}
+
+    for (const row of weeklyData.rows) {
+      if (!visiblePropertyNames.includes(row.property)) continue
+
+      if (!grouped[row.week]) {
+        grouped[row.week] = {
+          rawWeek: row.week,
+          week: formatWeekLabel(row.week),
+        }
+      }
+
+      const sessions = row.sessions || 0
+      const engagedSessions = row.engagedSessions || 0
+
+      grouped[row.week][row.property] =
+        sessions > 0 ? (engagedSessions / sessions) * 100 : 0
+    }
+
+    return Object.values(grouped).sort((a: any, b: any) =>
+      a.rawWeek.localeCompare(b.rawWeek)
+    )
+  }, [weeklyData, visiblePropertyNames])
+
+  const filteredWeeklyEngagementData = useMemo(() => {
+    switch (chartRange) {
+      case "1":
+        return weeklyEngagementData.slice(-4)
+
+      case "3":
+        return weeklyEngagementData.slice(-13)
+
+      case "12":
+      default:
+        return weeklyEngagementData.slice(-52)
+    }
+  }, [weeklyEngagementData, chartRange])
+
   const filteredWeeklyChartData = useMemo(() => {
     switch (chartRange) {
       case "1":
@@ -584,12 +625,6 @@ const searchComparison = useMemo(() => {
     )
       .sort()
       .slice(chartRange === "1" ? -1 : chartRange === "3" ? -3 : -12)
-
-    console.log(
-      "Search Months",
-      chartRange,
-      months
-    )
 
     return searchMonthlyData.rows.filter((row: any) => {
       const month = row.date.slice(0, 7).replace("-", "")
@@ -655,13 +690,6 @@ const availableMonths = Array.from(
   .sort()
   .filter((month) => month !== currentMonth)
   .slice(chartRange === "1" ? -1 : chartRange === "3" ? -3 : -12)
-
-  console.log(
-    "Chart Range:",
-    chartRange,
-    "Months:",
-    availableMonths
-  )  
 
   const grouped: Record<string, number> = {}
 
@@ -883,7 +911,7 @@ const availableMonths = Array.from(
                   dataKey={name}
                   stroke={propertyColors[name] || "#64748b"}
                   strokeWidth={2}
-                  dot={{ r: 1.5 }}
+                  dot={{ r: 4 }}
                 />
               ))}
             </LineChart>
@@ -1003,8 +1031,11 @@ const availableMonths = Array.from(
 
         <div className="h-[360px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={filteredEngagementTrendData}>
-              <XAxis dataKey="month" />
+            <LineChart data={filteredWeeklyEngagementData}>
+              <XAxis
+                dataKey="week"
+                interval={4}
+              />
 
               <YAxis tickFormatter={(value) => `${value}%`} />
 
@@ -1032,7 +1063,7 @@ const availableMonths = Array.from(
                   dataKey={name}
                   stroke={propertyColors[name] || "#64748b"}
                   strokeWidth={2}
-                  dot={{ r: 1.5 }}
+                  dot={{ r: 4 }}
                 />
               ))}
             </LineChart>
