@@ -145,6 +145,7 @@ export default function DashboardPage() {
   const [channelData, setChannelData] = useState<any>(null)
   const [weeklyData, setWeeklyData] = useState<any>(null)
   const [searchMonthlyData, setSearchMonthlyData] = useState<any>(null)
+  const [chartRange, setChartRange] = useState("12")
 
   const [selectedGroups, setSelectedGroups] = useState<string[]>([
     "Symetri",
@@ -285,6 +286,20 @@ export default function DashboardPage() {
     return monthlyData.slice(-12)
   }, [monthlyData])
 
+  const filteredMonthlyChartData = useMemo(() => {
+    switch (chartRange) {
+      case "1":
+        return monthlyChartData.slice(-1)
+
+      case "3":
+        return monthlyChartData.slice(-3)
+
+      case "12":
+      default:
+        return monthlyChartData.slice(-12)
+    }
+  }, [monthlyChartData, chartRange])
+
 const monthComparison = useMemo(() => {
   if (monthlyData.length < 2) return null
 
@@ -410,6 +425,20 @@ const searchComparison = useMemo(() => {
     )
   }, [visibleRows]) 
 
+  const filteredEngagementTrendData = useMemo(() => {
+    switch (chartRange) {
+      case "1":
+        return engagementTrendData.slice(-1)
+
+      case "3":
+        return engagementTrendData.slice(-3)
+
+      case "12":
+      default:
+        return engagementTrendData.slice(-12)
+    }
+  }, [engagementTrendData, chartRange])  
+  
   const weeklyChartData = useMemo(() => {
     if (!weeklyData?.rows) return []
 
@@ -446,6 +475,18 @@ const searchComparison = useMemo(() => {
     )
   }, [weeklyData, visiblePropertyNames])
 
+  const filteredWeeklyChartData = useMemo(() => {
+    switch (chartRange) {
+      case "1":
+        return weeklyChartData.slice(-4)
+      case "3":
+        return weeklyChartData.slice(-13)
+      case "12":
+      default:
+        return weeklyChartData.slice(-52)
+    }
+  }, [weeklyChartData, chartRange])  
+  
   const filteredSearchPages = useMemo(() => {
     if (!searchData?.pages) return []
 
@@ -571,7 +612,17 @@ const searchComparison = useMemo(() => {
 
       <div className="sticky top-4 z-50 bg-white rounded-2xl p-6 shadow-sm mb-10">
         <h2 className="text-xl font-semibold mb-4">Filters</h2>
-
+        <div className="flex flex-wrap gap-3 mb-6">
+          <select
+            value={chartRange}
+            onChange={(e) => setChartRange(e.target.value)}
+            className="border border-slate-200 rounded-lg px-3 py-2"
+          >
+            <option value="1">Latest Month</option>
+            <option value="3">Last 3 Months</option>
+            <option value="12">Last 12 Months</option>
+          </select>
+        </div>
         <div className="flex flex-wrap gap-3 mb-6">
           {groups.map((group: any) => {
             const active = selectedGroups.includes(group)
@@ -597,6 +648,7 @@ const searchComparison = useMemo(() => {
             )
           })}
         </div>
+
 
         <div className="flex flex-wrap gap-3">
           {propertiesInSelectedGroups.map((property: any) => {
@@ -657,7 +709,7 @@ const searchComparison = useMemo(() => {
 
         <div className="h-[500px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyChartData}>
+            <BarChart data={filteredMonthlyChartData}>
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip
@@ -692,7 +744,7 @@ const searchComparison = useMemo(() => {
 
         <div className="h-[500px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={weeklyChartData}>
+            <LineChart data={filteredWeeklyChartData}>
               <XAxis dataKey="week" interval={4} />
               <YAxis />
               <Tooltip
@@ -833,7 +885,7 @@ const searchComparison = useMemo(() => {
 
         <div className="h-[360px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={engagementTrendData}>
+            <LineChart data={filteredEngagementTrendData}>
               <XAxis dataKey="month" />
 
               <YAxis tickFormatter={(value) => `${value}%`} />
