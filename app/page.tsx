@@ -220,8 +220,18 @@ export default function DashboardPage() {
     )
   }, [data, visiblePropertyNames])
 
+  const visibleRowsForSelectedRange = useMemo(() => {
+    const months = Array.from(
+      new Set(visibleRows.map((row: any) => row.month))
+    )
+      .sort()
+      .slice(chartRange === "1" ? -1 : chartRange === "3" ? -3 : -12)
+
+    return visibleRows.filter((row: any) => months.includes(row.month))
+  }, [visibleRows, chartRange])
+
   const totals = useMemo(() => {
-    return visibleRows.reduce(
+    return visibleRowsForSelectedRange.reduce(
       (acc: any, row: any) => {
         acc.sessions += row.sessions || 0
         acc.activeUsers += row.activeUsers || 0
@@ -238,7 +248,7 @@ export default function DashboardPage() {
         userEngagementDuration: 0,
       }
     )
-  }, [visibleRows])
+  }, [visibleRowsForSelectedRange])
 
   const engagementRate =
     totals.sessions > 0 ? totals.engagedSessions / totals.sessions : 0
@@ -526,6 +536,29 @@ const searchComparison = useMemo(() => {
     return sortedSearchPages.slice(start, start + RESULTS_PER_PAGE)
   }, [sortedSearchPages, currentPage])
 
+  const filteredSearchRowsForSelectedRange = useMemo(() => {
+    if (!searchMonthlyData?.rows) return []
+
+    const months = Array.from(
+      new Set(
+        searchMonthlyData.rows
+          .filter((row: any) => visiblePropertyNames.includes(row.property))
+          .map((row: any) => row.date.slice(0, 7).replace("-", ""))
+      )
+    )
+      .sort()
+      .slice(chartRange === "1" ? -1 : chartRange === "3" ? -3 : -12)
+
+    return searchMonthlyData.rows.filter((row: any) => {
+      const month = row.date.slice(0, 7).replace("-", "")
+
+      return (
+        visiblePropertyNames.includes(row.property) &&
+        months.includes(month)
+      )
+    })
+  }, [searchMonthlyData, visiblePropertyNames, chartRange])
+  
   const searchTotals = useMemo(() => {
     const clicks = filteredSearchPages.reduce(
       (sum: number, row: any) => sum + row.clicks,
