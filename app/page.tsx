@@ -42,6 +42,28 @@ const channelColors = [
   "#64748b",
 ]
 
+const regionMap: Record<string, string[]> = {
+  Europe: [
+    "Symetri UK",
+    "Symetri Ireland",
+    "Symetri Sweden",
+    "Symetri Denmark",
+    "Symetri Finland",
+    "Symetri Norway",
+  ],
+  Nordic: [
+    "Symetri Sweden",
+    "Symetri Denmark",
+    "Symetri Finland",
+    "Symetri Norway",
+  ],
+  "UK&I": ["Symetri UK", "Symetri Ireland"],
+  USA: ["Symetri US"],
+  Canada: ["SolidCAD"],
+  LATAM: ["FF Solutions"],
+  Technology: ["Naviate", "Sovelia"],
+}
+
 const RESULTS_PER_PAGE = 10
 
 function formatMonth(value: string) {
@@ -146,13 +168,8 @@ export default function DashboardPage() {
   const [weeklyData, setWeeklyData] = useState<any>(null)
   const [searchMonthlyData, setSearchMonthlyData] = useState<any>(null)
   const [chartRange, setChartRange] = useState("12")
-
-  const [selectedGroups, setSelectedGroups] = useState<string[]>([
-    "Symetri",
-    "Technology",
-    "Acquisition",
-  ])
-
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
+  
   const [selectedProperties, setSelectedProperties] = useState<string[]>([])
   const [sortField, setSortField] = useState("clicks")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
@@ -194,8 +211,18 @@ export default function DashboardPage() {
 
   const propertiesInSelectedGroups = useMemo(() => {
     if (!data?.properties) return []
-    return data.properties.filter((p: any) => selectedGroups.includes(p.group))
-  }, [data, selectedGroups])
+
+    const regionProperties =
+      selectedRegion === null ? null : regionMap[selectedRegion] || []
+
+    if (regionProperties === null) {
+      return data.properties
+    }
+
+    return data.properties.filter((p: any) =>
+      regionProperties.includes(p.name)
+    )
+  }, [data, selectedRegion])
 
   const visiblePropertyNames = useMemo(() => {
     return propertiesInSelectedGroups
@@ -558,6 +585,12 @@ const searchComparison = useMemo(() => {
       .sort()
       .slice(chartRange === "1" ? -1 : chartRange === "3" ? -3 : -12)
 
+    console.log(
+      "Search Months",
+      chartRange,
+      months
+    )
+
     return searchMonthlyData.rows.filter((row: any) => {
       const month = row.date.slice(0, 7).replace("-", "")
 
@@ -567,6 +600,13 @@ const searchComparison = useMemo(() => {
       )
     })
   }, [searchMonthlyData, visiblePropertyNames, chartRange])
+
+  const searchClicksForSelectedRange = useMemo(() => {
+    return filteredSearchRowsForSelectedRange.reduce(
+      (sum: number, row: any) => sum + row.clicks,
+      0
+    )
+  }, [filteredSearchRowsForSelectedRange])
   
   const searchTotals = useMemo(() => {
     const clicks = filteredSearchPages.reduce(
@@ -662,7 +702,7 @@ const availableMonths = Array.from(
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [selectedGroups, selectedProperties])
+  }, [selectedRegion, selectedProperties])
 
   if (!data) {
     return <main className="p-10">Loading...</main>
@@ -680,43 +720,54 @@ const availableMonths = Array.from(
       <div className="sticky top-4 z-50 bg-white rounded-2xl p-6 shadow-sm mb-10">
         <h2 className="text-xl font-semibold mb-4">Filters</h2>
         <div className="flex flex-wrap gap-3 mb-6">
-          <select
-            value={chartRange}
-            onChange={(e) => setChartRange(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2"
-          >
-            <option value="1">Latest Month</option>
-            <option value="3">Last 3 Months</option>
-            <option value="12">Last 12 Months</option>
-          </select>
-        </div>
-        <div className="flex flex-wrap gap-3 mb-6">
-          {groups.map((group: any) => {
-            const active = selectedGroups.includes(group)
-
-            return (
+          <div className="flex flex-wrap gap-3">
+            {[
+              { label: "Annual", value: "12" },
+              { label: "Quarter", value: "3" },
+              { label: "Month", value: "1" },
+            ].map((range) => (
               <button
-                key={group}
-                onClick={() => {
-                  setSelectedGroups((current) =>
-                    active
-                      ? current.filter((g) => g !== group)
-                      : [...current, group]
-                  )
-                }}
+                key={range.value}
+                onClick={() => setChartRange(range.value)}
                 className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                  active
+                  chartRange === range.value
                     ? "bg-slate-900 text-white"
                     : "bg-slate-200 text-slate-700"
                 }`}
               >
-                {group}
+                {range.label}
               </button>
-            )
-          })}
+            ))}
+          </div>
         </div>
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setSelectedRegion(null)}
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                selectedRegion === null
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-200 text-slate-700"
+              }`}
+            >
+              All
+            </button>
 
-
+            {Object.keys(regionMap).map((region) => (
+              <button
+                key={region}
+                onClick={() => setSelectedRegion(region)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                  selectedRegion === region
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                {region}
+              </button>
+            ))}
+          </div>
+        </div>        
         <div className="flex flex-wrap gap-3">
           {propertiesInSelectedGroups.map((property: any) => {
             const active = selectedProperties.includes(property.name)
@@ -763,7 +814,7 @@ const availableMonths = Array.from(
 
   <KpiCard
     label="Organic Clicks"
-    value={searchTotals.clicks.toLocaleString()}
+    value={searchClicksForSelectedRange.toLocaleString()}
     mom={searchComparison?.clicksMom}
     yoy={searchComparison?.clicksYoy}
   />
