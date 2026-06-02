@@ -296,19 +296,28 @@ export default function DashboardPage() {
     return monthlyData.slice(-12)
   }, [monthlyData])
 
-  const filteredMonthlyChartData = useMemo(() => {
-    switch (chartRange) {
-      case "1":
-        return monthlyChartData.slice(-1)
+const filteredMonthlyChartData = useMemo(() => {
+  const currentMonth = new Date()
+    .toISOString()
+    .slice(0, 7)
+    .replace("-", "")
 
-      case "3":
-        return monthlyChartData.slice(-3)
+  const completeMonths = monthlyChartData.filter(
+    (row: any) => row.rawMonth !== currentMonth
+  )
 
-      case "12":
-      default:
-        return monthlyChartData.slice(-12)
-    }
-  }, [monthlyChartData, chartRange])
+  switch (chartRange) {
+    case "1":
+      return completeMonths.slice(-1)
+
+    case "3":
+      return completeMonths.slice(-3)
+
+    case "12":
+    default:
+      return completeMonths.slice(-12)
+  }
+}, [monthlyChartData, chartRange])
 
 const monthComparison = useMemo(() => {
   if (monthlyData.length < 2) return null
@@ -591,15 +600,28 @@ const searchComparison = useMemo(() => {
 const filteredChannels = useMemo(() => {
   if (!channelData?.rows) return []
 
-  const availableMonths = Array.from(
-    new Set(
-      channelData.rows
-        .filter((r: any) => visiblePropertyNames.includes(r.property))
-        .map((r: any) => r.month)
-    )
+const currentMonth = new Date()
+  .toISOString()
+  .slice(0, 7)
+  .replace("-", "")
+
+const availableMonths = Array.from(
+  new Set(
+    channelData.rows
+      .filter((r: any) => visiblePropertyNames.includes(r.property))
+      .map((r: any) => r.month)
   )
-    .sort()
-    .slice(chartRange === "1" ? -1 : chartRange === "3" ? -3 : -12)
+)
+  .sort()
+  .filter((month) => month !== currentMonth)
+  .slice(chartRange === "1" ? -1 : chartRange === "3" ? -3 : -12)
+
+  console.log(
+    "Chart Range:",
+    chartRange,
+    "Months:",
+    availableMonths
+  )  
 
   const grouped: Record<string, number> = {}
 
