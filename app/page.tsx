@@ -162,6 +162,7 @@ function KpiCard({
 }
 
 export default function DashboardPage() {
+  const [authError, setAuthError] = useState(false)
   const [channelData, setChannelData] = useState<any>(null)
   const [chartRange, setChartRange] = useState("12")
   const [currentPage, setCurrentPage] = useState(1)
@@ -179,11 +180,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((res) => res.json())
-      .then((json) => {
-        setData(json)
-        setSelectedProperties(json.properties?.map((p: any) => p.name) || [])
-      })
+    .then((res) => {
+      if (res.status === 401) {
+        setAuthError(true)
+        throw new Error("Unauthorised")
+      }
+      return res.json()
+    })
+    .then((json) => {
+      setData(json)
+      setSelectedProperties(
+        json.properties?.map((p: any) => p.name) || []
+      )
+    })
 
     fetch("/api/search-console")
       .then((res) => res.json())
@@ -799,10 +808,33 @@ const searchComparison = useMemo(() => {
     setCurrentPage(1)
   }, [selectedRegion, selectedProperties])
 
+if (authError) {
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-slate-100">
+      <div className="bg-white rounded-2xl shadow-sm p-8 text-center max-w-md">
+        <h1 className="text-3xl font-bold mb-4">
+          Global Website Dashboard
+        </h1>
+
+        <p className="text-slate-500 mb-6">
+          Sign in with Google to access GA4 and Search Console data.
+        </p>
+
+        <a
+          href="/api/auth/signin"
+          className="inline-block rounded-full bg-slate-900 text-white px-6 py-3 font-semibold"
+        >
+          Sign in with Google
+        </a>
+      </div>
+    </main>
+  )
+}
+
 if (!data) {
   return (
-    <main className="min-h-screen flex items-center justify-center">
-      <div className="text-center max-w-md">
+    <main className="min-h-screen flex items-center justify-center bg-slate-100">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 text-center max-w-md w-full">
         <h1 className="text-3xl font-bold mb-6">
           Building dashboard
         </h1>
@@ -818,7 +850,8 @@ if (!data) {
 }
 
   return (
-    <main className="min-h-screen bg-slate-100 p-8">
+    <main className="min-h-screen bg-slate-100 p-6">
+    <div className="animate-[fadeIn_0.6s_ease-out]">
       <div className="mb-8">
         <h1 className="text-4xl font-bold">Global Website Dashboard</h1>
         <p className="text-slate-500 mt-2">
@@ -1246,7 +1279,7 @@ if (!data) {
 
       <div className="bg-white rounded-2xl p-6 shadow-sm mb-10">
         <h2 className="text-2xl font-semibold mb-4">
-          Engagement Rate Trend
+          Weekly Engagement Rate Trend
         </h2>
 
         <div className="h-[360px]">
@@ -1471,6 +1504,7 @@ if (!data) {
             .
           </p>
         )}
+      </div>
       </div>
     </main>
   )
