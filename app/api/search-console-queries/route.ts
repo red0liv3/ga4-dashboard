@@ -17,17 +17,15 @@ export async function GET() {
 
   if (!accessToken) {
     return NextResponse.json(
-      { error: "Missing auth" },
+      { error: "Not signed in or missing Google access token" },
       { status: 401 }
     )
   }
 
-  const rows: any[] = []
+  const queries: any[] = []
   const errors: any[] = []
 
   for (const property of ga4Properties) {
-    if (!property.domain) continue
-
     const siteUrl = toSearchConsoleSiteUrl(property.domain)
 
     try {
@@ -42,10 +40,10 @@ export async function GET() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            startDate: "2025-04-01",
-            endDate: new Date().toISOString().split("T")[0],
-            dimensions: ["date"],
-            rowLimit: 25000,
+            startDate: "2025-05-01",
+            endDate: "2026-05-12",
+            dimensions: ["query"],
+            rowLimit: 100,
           }),
         }
       )
@@ -63,10 +61,10 @@ export async function GET() {
       }
 
       for (const row of data.rows || []) {
-        rows.push({
+        queries.push({
           property: property.name,
           domain: property.domain,
-          date: row.keys?.[0] || "",
+          query: row.keys?.[0] || "",
           clicks: row.clicks || 0,
           impressions: row.impressions || 0,
           ctr: row.ctr || 0,
@@ -82,9 +80,38 @@ export async function GET() {
     }
   }
 
+  const totals = queries.reduce(
+    (acc, query) => {
+      acc.clicks += query.clicks
+      acc.impressions += query.impressions
+      return acc
+    },
+    {
+      clicks: 0,
+      impressions: 0,
+    }
+  )
+
+  const averageCtr =
+    totals.impressions > 0
+      ? totals.clicks / totals.impressions
+      : 0
+
+  const averagePosition =
+    queries.length > 0
+      ? queries.reduce((sum, p) => sum + p.position, 0) /
+        queries.length
+      : 0
+
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
-    rows,
+    totals: {
+      clicks: totals.clicks,
+      impressions: totals.impressions,
+      ctr: averageCtr,
+      position: averagePosition,
+    },
+    queries,
     errors,
   })
 }

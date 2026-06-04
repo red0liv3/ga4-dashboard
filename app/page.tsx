@@ -162,18 +162,20 @@ function KpiCard({
 }
 
 export default function DashboardPage() {
-  const [data, setData] = useState<any>(null)
-  const [searchData, setSearchData] = useState<any>(null)
   const [channelData, setChannelData] = useState<any>(null)
-  const [weeklyData, setWeeklyData] = useState<any>(null)
-  const [searchMonthlyData, setSearchMonthlyData] = useState<any>(null)
   const [chartRange, setChartRange] = useState("12")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [data, setData] = useState<any>(null)
+  const [queryData, setQueryData] = useState<any>(null)
+  const [searchMonthlyData, setSearchMonthlyData] = useState<any>(null)
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
   const [sessionView, setSessionView] = useState("trend") 
   const [selectedProperties, setSelectedProperties] = useState<string[]>([])
   const [sortField, setSortField] = useState("clicks")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
-  const [currentPage, setCurrentPage] = useState(1)
+  const [searchData, setSearchData] = useState<any>(null)
+  const [seoView, setSeoView] = useState("pages")
+  const [weeklyData, setWeeklyData] = useState<any>(null)
 
   useEffect(() => {
     fetch("/api/dashboard")
@@ -197,6 +199,11 @@ export default function DashboardPage() {
       .then((res) => res.json())
       .then(setSearchMonthlyData)
       .catch(() => setSearchMonthlyData(null))
+
+    fetch("/api/search-console-queries")
+      .then((res) => res.json())
+      .then(setQueryData)
+      .catch(() => setQueryData(null))
 
     fetch("/api/weekly-trends")
       .then((res) => res.json())
@@ -323,28 +330,36 @@ export default function DashboardPage() {
     return monthlyData.slice(-12)
   }, [monthlyData])
 
-const filteredMonthlyChartData = useMemo(() => {
-  const currentMonth = new Date()
-    .toISOString()
-    .slice(0, 7)
-    .replace("-", "")
+  const filteredMonthlyChartData = useMemo(() => {
+    const currentMonth = new Date()
+      .toISOString()
+      .slice(0, 7)
+      .replace("-", "")
 
-  const completeMonths = monthlyChartData.filter(
-    (row: any) => row.rawMonth !== currentMonth
-  )
+    const completeMonths = monthlyChartData.filter(
+      (row: any) => row.rawMonth !== currentMonth
+    )
 
-  switch (chartRange) {
-    case "1":
-      return completeMonths.slice(-1)
+    switch (chartRange) {
+      case "1":
+        return completeMonths.slice(-1)
 
-    case "3":
-      return completeMonths.slice(-3)
+      case "3":
+        return completeMonths.slice(-3)
 
-    case "12":
-    default:
-      return completeMonths.slice(-12)
-  }
-}, [monthlyChartData, chartRange])
+      case "12":
+      default:
+        return completeMonths.slice(-12)
+    }
+  }, [monthlyChartData, chartRange])
+
+  const filteredQueryRows = useMemo(() => {
+    if (!queryData?.queries) return []
+
+    return queryData.queries
+      .filter((row: any) => visiblePropertyNames.includes(row.property))
+      .sort((a: any, b: any) => b.clicks - a.clicks)
+  }, [queryData, visiblePropertyNames])
 
 const monthComparison = useMemo(() => {
   if (monthlyData.length < 2) return null
@@ -613,8 +628,34 @@ const searchComparison = useMemo(() => {
     return sortedSearchPages.slice(start, start + RESULTS_PER_PAGE)
   }, [sortedSearchPages, currentPage])
 
+  const visibleSearchQueries = useMemo(() => {
+  if (!queryData?.queries) return []
+
+  const filtered = queryData.queries
+    .filter((query: any) =>
+      visiblePropertyNames.includes(query.property)
+    )
+    .sort((a: any, b: any) => b.clicks - a.clicks)
+
+  const start = (currentPage - 1) * RESULTS_PER_PAGE
+
+  return filtered.slice(
+    start,
+    start + RESULTS_PER_PAGE
+  )
+  }, [
+    queryData,
+    visiblePropertyNames,
+    currentPage,
+  ])
+  
   const filteredSearchRowsForSelectedRange = useMemo(() => {
     if (!searchMonthlyData?.rows) return []
+
+    const currentMonth = new Date()
+      .toISOString()
+      .slice(0, 7)
+      .replace("-", "")
 
     const months = Array.from(
       new Set(
@@ -624,6 +665,7 @@ const searchComparison = useMemo(() => {
       )
     )
       .sort()
+      .filter((month) => month !== currentMonth)
       .slice(chartRange === "1" ? -1 : chartRange === "3" ? -3 : -12)
 
     return searchMonthlyData.rows.filter((row: any) => {
@@ -1262,9 +1304,35 @@ if (!data) {
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm">
-        <h2 className="text-2xl font-semibold mb-4">
-          Top Organic Landing Pages
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-semibold">
+            Organic Search
+          </h2>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSeoView("pages")}
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                seoView === "pages"
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-200 text-slate-700"
+              }`}
+            >
+              Pages
+            </button>
+
+            <button
+              onClick={() => setSeoView("queries")}
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                seoView === "queries"
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-200 text-slate-700"
+              }`}
+            >
+              Queries
+            </button>
+          </div>
+        </div>
 
         {!searchData ? (
           <p className="text-slate-500">Loading Search Console data...</p>
@@ -1282,9 +1350,9 @@ if (!data) {
                     </th>
                     <th
                       className="py-3 pr-4 cursor-pointer"
-                      onClick={() => handleSort("page")}
+                      onClick={() => handleSort(seoView === "queries" ? "query" : "page")}
                     >
-                      Page
+                      {seoView === "queries" ? "Query" : "Page"}
                     </th>
                     <th
                       className="py-3 pr-4 text-right cursor-pointer"
@@ -1314,20 +1382,25 @@ if (!data) {
                 </thead>
 
                 <tbody>
-                  {visibleSearchPages.map((page: any, index: number) => (
+                  {(seoView === "queries" ? visibleSearchQueries : visibleSearchPages).map(
+                    (page: any, index: number) => (
                     <tr key={`${page.page}-${index}`} className="border-b border-slate-200">
                       <td className="py-3 pr-4 font-medium">
                         {page.property}
                       </td>
                       <td className="py-3 pr-4 max-w-xl truncate">
-                        <a
-                          href={page.page}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[#00A3E0] hover:underline"
-                        >
-                          {page.page}
-                        </a>
+                        {seoView === "queries" ? (
+                          <span>{page.query}</span>
+                        ) : (
+                          <a
+                            href={page.page}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[#00A3E0] hover:underline"
+                          >
+                            {page.page}
+                          </a>
+                        )}
                       </td>
                       <td className="py-3 pr-4 text-right">
                         {page.clicks.toLocaleString()}
@@ -1342,7 +1415,8 @@ if (!data) {
                         {page.position.toFixed(1)}
                       </td>
                     </tr>
-                  ))}
+                    )
+                  )}
                 </tbody>
               </table>
             </div>
