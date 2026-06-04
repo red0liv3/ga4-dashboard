@@ -169,7 +169,7 @@ export default function DashboardPage() {
   const [searchMonthlyData, setSearchMonthlyData] = useState<any>(null)
   const [chartRange, setChartRange] = useState("12")
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
-  
+  const [sessionView, setSessionView] = useState("trend") 
   const [selectedProperties, setSelectedProperties] = useState<string[]>([])
   const [sortField, setSortField] = useState("clicks")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
@@ -887,40 +887,163 @@ if (!data) {
   />
 </div>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm mb-10">
-        <h2 className="text-2xl font-semibold mb-4">
-          Monthly Sessions by Property
-        </h2>
+      <div className="bg-white rounded-2xl p-6 shadow-sm mb-10 break-inside-avoid">
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="text-2xl font-semibold">
+      Sessions by Property
+    </h2>
 
-        <div className="h-[500px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={filteredMonthlyChartData}>
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip
-                wrapperStyle={{
-                  zIndex: 9999,
-                }}
-                contentStyle={{
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "12px",
-                }}
-              />
-              <Legend />
+    <div className="flex gap-2">
+      <button
+        onClick={() => setSessionView("trend")}
+        className={`rounded-full px-4 py-2 text-sm font-semibold ${
+          sessionView === "trend"
+            ? "bg-slate-900 text-white"
+            : "bg-slate-200 text-slate-700"
+        }`}
+      >
+        Trend
+      </button>
 
-              {sortedVisibleProperties.map((name: string) => (
-                <Bar
-                  key={name}
-                  dataKey={name}
-                  stackId="a"
-                  fill={propertyColors[name] || "#64748b"}
+      <button
+        onClick={() => setSessionView("share")}
+        className={`rounded-full px-4 py-2 text-sm font-semibold ${
+          sessionView === "share"
+            ? "bg-slate-900 text-white"
+            : "bg-slate-200 text-slate-700"
+        }`}
+      >
+        Share
+      </button>
+    </div>
+  </div>
+
+  {sessionView === "trend" && (
+    <div className="h-[500px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={filteredMonthlyChartData}>
+          <XAxis dataKey="month" />
+          <YAxis />
+          <Tooltip
+            wrapperStyle={{ zIndex: 9999 }}
+            contentStyle={{
+              backgroundColor: "#ffffff",
+              border: "1px solid #e2e8f0",
+              borderRadius: "12px",
+            }}
+          />
+          <Legend />
+
+          {sortedVisibleProperties.map((name: string) => (
+            <Bar
+              key={name}
+              dataKey={name}
+              stackId="a"
+              fill={propertyColors[name] || "#64748b"}
+            />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )}
+
+  {sessionView === "share" && (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+      <div className="h-[420px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={propertyShareData}
+              dataKey="sessions"
+              nameKey="property"
+              innerRadius={90}
+              outerRadius={150}
+              paddingAngle={2}
+            >
+              {propertyShareData.map((entry: any) => (
+                <Cell
+                  key={entry.property}
+                  fill={propertyColors[entry.property] || "#64748b"}
                 />
               ))}
-            </BarChart>
-          </ResponsiveContainer>
+            </Pie>
+
+            <Tooltip
+              formatter={(value: any, name: any) => {
+                const sessions = Number(value)
+                const percent =
+                  totalPropertyShareSessions > 0
+                    ? (sessions / totalPropertyShareSessions) * 100
+                    : 0
+
+                return [
+                  `${sessions.toLocaleString()} sessions (${percent.toFixed(1)}%)`,
+                  name,
+                ]
+              }}
+              wrapperStyle={{ zIndex: 9999 }}
+              contentStyle={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+              }}
+            />
+
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div>
+        <p className="text-slate-500 mb-2">
+          Total selected sessions
+        </p>
+
+        <h3 className="text-4xl font-bold mb-6">
+          {totalPropertyShareSessions.toLocaleString()}
+        </h3>
+
+        <div className="space-y-3">
+          {propertyShareData.map((row: any) => {
+            const percent =
+              totalPropertyShareSessions > 0
+                ? (row.sessions / totalPropertyShareSessions) * 100
+                : 0
+
+            return (
+              <div
+                key={row.property}
+                className="flex items-center justify-between border-b border-slate-200 pb-2"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className="h-3 w-3 rounded-full"
+                    style={{
+                      backgroundColor:
+                        propertyColors[row.property] || "#64748b",
+                    }}
+                  />
+
+                  <span className="font-medium">{row.property}</span>
+                </div>
+
+                <div className="text-right">
+                  <div className="font-semibold">
+                    {row.sessions.toLocaleString()}
+                  </div>
+
+                  <div className="text-xs text-slate-500">
+                    {percent.toFixed(1)}%
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
+    </div>
+  )}
+</div>  
 
       <div className="bg-white rounded-2xl p-6 shadow-sm mb-10">
         <h2 className="text-2xl font-semibold mb-4">
@@ -957,111 +1080,6 @@ if (!data) {
           </ResponsiveContainer>
         </div>
       </div>
-      
-<div className="bg-white rounded-2xl p-6 shadow-sm mb-10 break-inside-avoid">
-  <h2 className="text-2xl font-semibold mb-6">
-    Sessions by Property
-  </h2>
-
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-    <div className="h-[420px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={propertyShareData}
-            dataKey="sessions"
-            nameKey="property"
-            innerRadius={90}
-            outerRadius={150}
-            paddingAngle={2}
-          >
-            {propertyShareData.map((entry: any) => (
-              <Cell
-                key={entry.property}
-                fill={propertyColors[entry.property] || "#64748b"}
-              />
-            ))}
-          </Pie>
-
-          <Tooltip
-            formatter={(value: any, name: any) => {
-              const sessions = Number(value)
-              const percent =
-                totalPropertyShareSessions > 0
-                  ? (sessions / totalPropertyShareSessions) * 100
-                  : 0
-
-              return [
-                `${sessions.toLocaleString()} sessions (${percent.toFixed(
-                  1
-                )}%)`,
-                name,
-              ]
-            }}
-            wrapperStyle={{
-              zIndex: 9999,
-            }}
-            contentStyle={{
-              backgroundColor: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: "12px",
-            }}
-          />
-
-          <Legend />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-
-    <div>
-      <p className="text-slate-500 mb-2">
-        Total selected sessions
-      </p>
-
-      <h3 className="text-4xl font-bold mb-6">
-        {totalPropertyShareSessions.toLocaleString()}
-      </h3>
-
-      <div className="space-y-3">
-        {propertyShareData.map((row: any) => {
-          const percent =
-            totalPropertyShareSessions > 0
-              ? (row.sessions / totalPropertyShareSessions) * 100
-              : 0
-
-          return (
-            <div
-              key={row.property}
-              className="flex items-center justify-between border-b border-slate-200 pb-2"
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className="h-3 w-3 rounded-full"
-                  style={{
-                    backgroundColor:
-                      propertyColors[row.property] || "#64748b",
-                  }}
-                />
-
-                <span className="font-medium">{row.property}</span>
-              </div>
-
-              <div className="text-right">
-                <div className="font-semibold">
-                  {row.sessions.toLocaleString()}
-                </div>
-
-                <div className="text-xs text-slate-500">
-                  {percent.toFixed(1)}%
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  </div>
-</div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm mb-10">
         <h2 className="text-2xl font-semibold mb-6">
