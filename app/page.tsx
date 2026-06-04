@@ -458,8 +458,8 @@ const searchComparison = useMemo(() => {
   }
 }, [searchMonthlyData, visiblePropertyNames])
 
-
-
+  const sortTooltipDescending = (item: any) =>
+    -(Number(item.value) || 0)
 
   const engagementTrendData = useMemo(() => {
     const grouped: Record<string, any> = {}
@@ -967,6 +967,7 @@ if (!data) {
           <XAxis dataKey="month" />
           <YAxis />
           <Tooltip
+            itemSorter={sortTooltipDescending}
             wrapperStyle={{ zIndex: 9999 }}
             contentStyle={{
               backgroundColor: "#ffffff",
@@ -1011,6 +1012,7 @@ if (!data) {
             </Pie>
 
             <Tooltip
+              itemSorter={sortTooltipDescending}
               formatter={(value: any, name: any) => {
                 const sessions = Number(value)
                 const percent =
@@ -1098,6 +1100,7 @@ if (!data) {
               <XAxis dataKey="week" interval={4} />
               <YAxis />
               <Tooltip
+                itemSorter={sortTooltipDescending}
                 wrapperStyle={{
                   zIndex: 9999,
                 }}
@@ -1151,6 +1154,7 @@ if (!data) {
                     ))}
                   </Pie>
                   <Tooltip
+                  itemSorter={sortTooltipDescending}
                   formatter={(value: any, name: any) => {
                     const sessions = Number(value)
                     const percent =
@@ -1256,6 +1260,7 @@ if (!data) {
               <YAxis tickFormatter={(value) => `${value}%`} />
 
                 <Tooltip
+                  itemSorter={sortTooltipDescending}
                   formatter={(value: any) =>
                     `${Number(value).toFixed(1)}%`
                   }
