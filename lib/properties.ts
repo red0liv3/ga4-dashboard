@@ -10,5 +10,5 @@ export const ga4Properties = [
   { name: "Naviate", domain: "naviate.com", propertyId: "309720363", group: "Technology", country: "Global" },
   { name: "Sovelia", domain: "sovelia.com", propertyId: "297896036", group: "Technology", country: "Global" },
   { name: "FF Solutions", domain: "ff.solutions", propertyId: "327896514", group: "Acquisition", country: "Brazil" },
-  { name: "SolidCAD", domain: "solidcad.ca", propertyId: "327544656", group: "Acquisition", country: "Canada" },
+  { name: "SolidCAD", domain: "solidcad.ca", searchConsoleSiteUrl: "https://www.solidcad.ca/", propertyId: "327544656", group: "Acquisition", country: "Canada" },
 ]

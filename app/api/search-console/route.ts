@@ -4,6 +4,10 @@ import { authOptions } from "../auth/[...nextauth]/route"
 import { ga4Properties } from "../../../lib/properties"
 
 function toSearchConsoleSiteUrl(domain: string) {
+  if (domain === "solidcad.ca") {
+    return "https://www.solidcad.ca/"
+  }
+
   return `sc-domain:${domain}`
 }
 

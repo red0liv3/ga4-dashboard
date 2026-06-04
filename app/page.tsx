@@ -672,21 +672,21 @@ const searchComparison = useMemo(() => {
     }
   }, [filteredSearchPages])
 
-const filteredChannels = useMemo(() => {
-  if (!channelData?.rows) return []
+  const filteredChannels = useMemo(() => {
+    if (!channelData?.rows) return []
 
-const currentMonth = new Date()
-  .toISOString()
-  .slice(0, 7)
-  .replace("-", "")
+  const currentMonth = new Date()
+    .toISOString()
+    .slice(0, 7)
+    .replace("-", "")
 
-const availableMonths = Array.from(
-  new Set(
-    channelData.rows
-      .filter((r: any) => visiblePropertyNames.includes(r.property))
-      .map((r: any) => r.month)
+  const availableMonths = Array.from(
+    new Set(
+      channelData.rows
+        .filter((r: any) => visiblePropertyNames.includes(r.property))
+        .map((r: any) => r.month)
+    )
   )
-)
   .sort()
   .filter((month) => month !== currentMonth)
   .slice(chartRange === "1" ? -1 : chartRange === "3" ? -3 : -12)
@@ -707,9 +707,34 @@ const availableMonths = Array.from(
       channel,
       sessions,
     }))
-    .sort((a, b) => b.sessions - a.sessions)
-}, [channelData, visiblePropertyNames, chartRange])
+      .sort((a, b) => b.sessions - a.sessions)
+  }, [channelData, visiblePropertyNames, chartRange])
 
+  const propertyShareData = useMemo(() => {
+    const grouped: Record<string, number> = {}
+
+    for (const row of visibleRowsForSelectedRange) {
+      if (!visiblePropertyNames.includes(row.property)) continue
+
+      grouped[row.property] =
+        (grouped[row.property] || 0) + row.sessions
+    }
+
+    return Object.entries(grouped)
+      .map(([property, sessions]) => ({
+        property,
+        sessions,
+      }))
+      .sort((a, b) => b.sessions - a.sessions)
+  }, [visibleRowsForSelectedRange, visiblePropertyNames])  
+
+  const totalPropertyShareSessions = useMemo(() => {
+    return propertyShareData.reduce(
+      (sum: number, row: any) => sum + row.sessions,
+      0
+    )
+  }, [propertyShareData])  
+  
   const totalChannelSessions = useMemo(() => {
     return filteredChannels.reduce(
       (sum: number, row: any) => sum + row.sessions,
@@ -732,9 +757,23 @@ const availableMonths = Array.from(
     setCurrentPage(1)
   }, [selectedRegion, selectedProperties])
 
-  if (!data) {
-    return <main className="p-10">Loading...</main>
-  }
+if (!data) {
+  return (
+    <main className="min-h-screen flex items-center justify-center">
+      <div className="text-center max-w-md">
+        <h1 className="text-3xl font-bold mb-6">
+          Building dashboard
+        </h1>
+
+        <div className="mt-8 flex justify-center gap-2">
+          <div className="h-3 w-3 rounded-full bg-slate-400 animate-bounce" />
+          <div className="h-3 w-3 rounded-full bg-slate-400 animate-bounce [animation-delay:200ms]" />
+          <div className="h-3 w-3 rounded-full bg-slate-400 animate-bounce [animation-delay:400ms]" />
+        </div>
+      </div>
+    </main>
+  )
+}
 
   return (
     <main className="min-h-screen bg-slate-100 p-8">
@@ -918,6 +957,111 @@ const availableMonths = Array.from(
           </ResponsiveContainer>
         </div>
       </div>
+      
+<div className="bg-white rounded-2xl p-6 shadow-sm mb-10 break-inside-avoid">
+  <h2 className="text-2xl font-semibold mb-6">
+    Sessions by Property
+  </h2>
+
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+    <div className="h-[420px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={propertyShareData}
+            dataKey="sessions"
+            nameKey="property"
+            innerRadius={90}
+            outerRadius={150}
+            paddingAngle={2}
+          >
+            {propertyShareData.map((entry: any) => (
+              <Cell
+                key={entry.property}
+                fill={propertyColors[entry.property] || "#64748b"}
+              />
+            ))}
+          </Pie>
+
+          <Tooltip
+            formatter={(value: any, name: any) => {
+              const sessions = Number(value)
+              const percent =
+                totalPropertyShareSessions > 0
+                  ? (sessions / totalPropertyShareSessions) * 100
+                  : 0
+
+              return [
+                `${sessions.toLocaleString()} sessions (${percent.toFixed(
+                  1
+                )}%)`,
+                name,
+              ]
+            }}
+            wrapperStyle={{
+              zIndex: 9999,
+            }}
+            contentStyle={{
+              backgroundColor: "#ffffff",
+              border: "1px solid #e2e8f0",
+              borderRadius: "12px",
+            }}
+          />
+
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+
+    <div>
+      <p className="text-slate-500 mb-2">
+        Total selected sessions
+      </p>
+
+      <h3 className="text-4xl font-bold mb-6">
+        {totalPropertyShareSessions.toLocaleString()}
+      </h3>
+
+      <div className="space-y-3">
+        {propertyShareData.map((row: any) => {
+          const percent =
+            totalPropertyShareSessions > 0
+              ? (row.sessions / totalPropertyShareSessions) * 100
+              : 0
+
+          return (
+            <div
+              key={row.property}
+              className="flex items-center justify-between border-b border-slate-200 pb-2"
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className="h-3 w-3 rounded-full"
+                  style={{
+                    backgroundColor:
+                      propertyColors[row.property] || "#64748b",
+                  }}
+                />
+
+                <span className="font-medium">{row.property}</span>
+              </div>
+
+              <div className="text-right">
+                <div className="font-semibold">
+                  {row.sessions.toLocaleString()}
+                </div>
+
+                <div className="text-xs text-slate-500">
+                  {percent.toFixed(1)}%
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  </div>
+</div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm mb-10">
         <h2 className="text-2xl font-semibold mb-6">
@@ -947,15 +1091,27 @@ const availableMonths = Array.from(
                     ))}
                   </Pie>
                   <Tooltip
-                    wrapperStyle={{
-                      zIndex: 9999,
-                    }}
-                    contentStyle={{
-                      backgroundColor: "#ffffff",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "12px",
-                    }}
-                  />
+                  formatter={(value: any, name: any) => {
+                    const sessions = Number(value)
+                    const percent =
+                      totalChannelSessions > 0
+                        ? (sessions / totalChannelSessions) * 100
+                        : 0
+
+                    return [
+                      `${sessions.toLocaleString()} sessions (${percent.toFixed(1)}%)`,
+                      name,
+                    ]
+                  }}
+                  wrapperStyle={{
+                    zIndex: 9999,
+                  }}
+                  contentStyle={{
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "12px",
+                  }}
+                />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>

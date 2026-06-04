@@ -20,9 +20,16 @@ export async function GET() {
   for (const property of ga4Properties) {
     if (!property.domain) continue
 
+    const siteUrl =
+      property.domain === "solidcad.ca"
+        ? "https://www.solidcad.ca/"
+        : `sc-domain:${property.domain}`
+
     try {
       const response = await fetch(
-        `https://searchconsole.googleapis.com/webmasters/v3/sites/sc-domain:${property.domain}/searchAnalytics/query`,
+        `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(
+          siteUrl
+        )}/searchAnalytics/query`,
         {
           method: "POST",
           headers: {
