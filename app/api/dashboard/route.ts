@@ -1,4 +1,6 @@
+import { getServerSession } from "next-auth"
 import { NextResponse } from "next/server"
+import { authOptions } from "../auth/[...nextauth]/route"
 import { ga4Properties } from "../../../lib/properties"
 import { getAccessToken } from "../../../lib/googleClient"
 
@@ -15,6 +17,15 @@ type DashboardRow = {
 }
 
 export async function GET() {
+  const session = await getServerSession(authOptions as any)
+
+  if (!session) {
+    return NextResponse.json(
+      { error: "Unauthorised" },
+      { status: 401 }
+    )
+  }
+
   const accessToken = await getAccessToken()
   const rows: DashboardRow[] = []
   const errors: unknown[] = []

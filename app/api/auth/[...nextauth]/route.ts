@@ -9,10 +9,7 @@ export const authOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope:
-  "openid email profile https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly",
-          prompt: "consent",
-          access_type: "offline",
+          scope: "openid email profile",
         },
       },
     }),
