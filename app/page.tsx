@@ -1,5 +1,6 @@
 "use client"
 
+import { signOut } from "next-auth/react"
 import { useEffect, useMemo, useState } from "react"
 import {
   ResponsiveContainer,
@@ -862,6 +863,7 @@ if (authError) {
         >
           Sign in with Google
         </a>
+
       </div>
     </main>
   )
@@ -892,6 +894,14 @@ if (!data) {
         <p className="text-slate-500 mt-2">
           Blended GA4 and Search Console reporting
         </p>
+         <div className="absolute top-5 right-5">
+          <button
+            onClick={() => signOut()}
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-100"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
 
       <div className="sticky top-4 z-50 bg-white rounded-2xl p-6 shadow-sm mb-10">
