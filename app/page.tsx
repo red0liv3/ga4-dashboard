@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  TooltipProps,
   Legend,
   LineChart,
   Line,
@@ -156,6 +157,41 @@ function KpiCard({
       <div className="mt-3">
         <ChangeLine label="MoM" value={mom} />
         <ChangeLine label="YoY" value={yoy} />
+      </div>
+    </div>
+  )
+}
+
+function SingleSeriesTooltip({
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) {
+  if (!active || !payload || payload.length === 0) return null
+
+  const item = payload[0]
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+      <p className="text-sm text-slate-500 mb-2">
+        {label}
+      </p>
+
+      <div className="flex items-center gap-2">
+        <span
+          className="h-3 w-3 rounded-full"
+          style={{
+            backgroundColor: item.color,
+          }}
+        />
+
+        <span className="font-medium">
+          {item.name}
+        </span>
+
+        <span className="ml-auto font-semibold">
+          {Number(item.value).toLocaleString()}
+        </span>
       </div>
     </div>
   )
@@ -851,7 +887,6 @@ if (!data) {
 
   return (
     <main className="min-h-screen bg-slate-100 p-6">
-    <div className="animate-[fadeIn_0.6s_ease-out]">
       <div className="mb-8">
         <h1 className="text-4xl font-bold">Global Website Dashboard</h1>
         <p className="text-slate-500 mt-2">
@@ -1000,14 +1035,14 @@ if (!data) {
           <XAxis dataKey="month" />
           <YAxis />
           <Tooltip
-            itemSorter={sortTooltipDescending}
-            wrapperStyle={{ zIndex: 9999 }}
-            contentStyle={{
-              backgroundColor: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: "12px",
-            }}
-          />
+              shared={false}
+              wrapperStyle={{ zIndex: 9999 }}
+              contentStyle={{
+                backgroundColor: "#fff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+              }}
+            />
           <Legend />
 
           {sortedVisibleProperties.map((name: string) => (
@@ -1058,9 +1093,10 @@ if (!data) {
                   name,
                 ]
               }}
+              shared={false}
               wrapperStyle={{ zIndex: 9999 }}
               contentStyle={{
-                backgroundColor: "#ffffff",
+                backgroundColor: "#fff",
                 border: "1px solid #e2e8f0",
                 borderRadius: "12px",
               }}
@@ -1134,11 +1170,10 @@ if (!data) {
               <YAxis />
               <Tooltip
                 itemSorter={sortTooltipDescending}
-                wrapperStyle={{
-                  zIndex: 9999,
-                }}
+                shared={false}
+                wrapperStyle={{ zIndex: 9999 }}
                 contentStyle={{
-                  backgroundColor: "#ffffff",
+                  backgroundColor: "#fff",
                   border: "1px solid #e2e8f0",
                   borderRadius: "12px",
                 }}
@@ -1151,7 +1186,8 @@ if (!data) {
                   dataKey={name}
                   stroke={propertyColors[name] || "#64748b"}
                   strokeWidth={2}
-                  dot={{ r: 4 }}
+                  dot={{ r: 6 }}
+                  activeDot={{ r: 8 }}
                 />
               ))}
             </LineChart>
@@ -1200,11 +1236,10 @@ if (!data) {
                       name,
                     ]
                   }}
-                  wrapperStyle={{
-                    zIndex: 9999,
-                  }}
+                  shared={false}
+                  wrapperStyle={{ zIndex: 9999 }}
                   contentStyle={{
-                    backgroundColor: "#ffffff",
+                    backgroundColor: "#fff",
                     border: "1px solid #e2e8f0",
                     borderRadius: "12px",
                   }}
@@ -1297,14 +1332,12 @@ if (!data) {
                   formatter={(value: any) =>
                     `${Number(value).toFixed(1)}%`
                   }
-                  wrapperStyle={{
-                    zIndex: 9999,
-                  }}
+                  shared={false}
+                  wrapperStyle={{ zIndex: 9999 }}
                   contentStyle={{
-                    backgroundColor: "#ffffff",
+                    backgroundColor: "#fff",
                     border: "1px solid #e2e8f0",
                     borderRadius: "12px",
-                    opacity: 1,
                   }}
                 />
 
@@ -1317,7 +1350,8 @@ if (!data) {
                   dataKey={name}
                   stroke={propertyColors[name] || "#64748b"}
                   strokeWidth={2}
-                  dot={{ r: 4 }}
+                  dot={{ r: 6 }}
+                  activeDot={{ r: 8 }}
                 />
               ))}
             </LineChart>
@@ -1504,7 +1538,6 @@ if (!data) {
             .
           </p>
         )}
-      </div>
       </div>
     </main>
   )
