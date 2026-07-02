@@ -13,6 +13,9 @@ type DashboardRow = {
   sessions: number
   activeUsers: number
   newUsers: number
+  engagedSessions: number
+  userEngagementDuration: number
+  engagementRate: number
   error?: unknown
 }
 

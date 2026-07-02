@@ -163,11 +163,7 @@ function KpiCard({
   )
 }
 
-function SingleSeriesTooltip({
-  active,
-  payload,
-  label,
-}: TooltipProps<number, string>) {
+function SingleSeriesTooltip({ active, payload, label }: any) {
   if (!active || !payload || payload.length === 0) return null
 
   const item = payload[0]
@@ -894,7 +890,7 @@ if (!data) {
         <p className="text-slate-500 mt-2">
           Blended GA4 and Search Console reporting
         </p>
-         <div className="absolute top-5 right-5">
+         <div className="absolute top-5 right-6">
           <button
             onClick={() => signOut()}
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-100"
