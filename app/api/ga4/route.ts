@@ -1,20 +1,10 @@
-import { getServerSession } from "next-auth"
 import { NextResponse } from "next/server"
-import { authOptions } from "../auth/[...nextauth]/route"
+import { getAccessToken } from "../../../lib/googleClient"
 
 const PROPERTY_ID = "319620971"
 
 export async function GET() {
-  const session = await getServerSession(authOptions as any)
-  const accessToken = (session as any)?.accessToken
-
-  if (!accessToken) {
-    return NextResponse.json(
-      { error: "Not signed in or missing Google access token", session },
-      { status: 401 }
-    )
-  }
-
+  const accessToken = await getAccessToken()
   const response = await fetch(
     `https://analyticsdata.googleapis.com/v1beta/properties/${PROPERTY_ID}:runReport`,
     {

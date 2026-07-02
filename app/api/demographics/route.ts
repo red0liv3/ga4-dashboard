@@ -1,19 +1,9 @@
-import { getServerSession } from "next-auth"
 import { NextResponse } from "next/server"
-import { authOptions } from "../auth/[...nextauth]/route"
 import { ga4Properties } from "../../../lib/properties"
+import { getAccessToken } from "../../../lib/googleClient"
 
 export async function GET() {
-  const session = await getServerSession(authOptions as any)
-  const accessToken = (session as any)?.accessToken
-
-  if (!accessToken) {
-    return NextResponse.json(
-      { error: "Missing auth" },
-      { status: 401 }
-    )
-  }
-
+  const accessToken = await getAccessToken()
   const rows: any[] = []
   const errors: any[] = []
 

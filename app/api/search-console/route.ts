@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth"
 import { NextResponse } from "next/server"
-import { authOptions } from "../auth/[...nextauth]/route"
 import { ga4Properties } from "../../../lib/properties"
+import { getAccessToken } from "../../../lib/googleClient"
 
 function toSearchConsoleSiteUrl(domain: string) {
   if (domain === "solidcad.ca") {
@@ -12,16 +11,7 @@ function toSearchConsoleSiteUrl(domain: string) {
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions as any)
-  const accessToken = (session as any)?.accessToken
-
-  if (!accessToken) {
-    return NextResponse.json(
-      { error: "Not signed in or missing Google access token" },
-      { status: 401 }
-    )
-  }
-
+  const accessToken = await getAccessToken()
   const pages: any[] = []
   const errors: any[] = []
 
