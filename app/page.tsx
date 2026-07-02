@@ -219,15 +219,15 @@ export default function DashboardPage() {
     .then((res) => {
       if (res.status === 401) {
         setAuthError(true)
-        throw new Error("Unauthorised")
+        return null
       }
       return res.json()
     })
     .then((json) => {
+      if (!json) return
+
       setData(json)
-      setSelectedProperties(
-        json.properties?.map((p: any) => p.name) || []
-      )
+      setSelectedProperties(json.properties?.map((p: any) => p.name) || [])
     })
 
     fetch("/api/search-console")

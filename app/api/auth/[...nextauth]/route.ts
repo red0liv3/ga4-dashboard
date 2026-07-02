@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
+import { allowedUsers } from "@/config/allowedUsers"
 
 export const authOptions = {
   providers: [
@@ -17,6 +18,11 @@ export const authOptions = {
     }),
   ],
   callbacks: { 
+    async signIn({ profile }: any) {
+      return allowedUsers
+        .map(email => email.toLowerCase())
+        .includes(profile?.email?.toLowerCase())
+    },
     async jwt({ token, account }: any) {
       if (account?.access_token) {
         token.accessToken = account.access_token
